@@ -60,5 +60,10 @@
     "json",
     "jsonc",
     "yaml"
+  ],
+  "cSpell.words": [
+    "censujiang",
+    "localforage",
+    "uniapp"
   ]
 }

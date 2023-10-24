@@ -1,17 +1,17 @@
 {
-  "name": "pkg-name",
+  "name": "localforage-adapter",
   "type": "module",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "packageManager": "pnpm@8.9.0",
   "description": "",
-  "author": "Uni-Helper",
+  "author": "Uni-Helper,censujiang",
   "license": "MIT",
-  "homepage": "https://github.com/uni-helper/pkg-name#readme",
+  "homepage": "https://github.com/uni-helper/localForage-adapter#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/uni-helper/pkg-name.git"
+    "url": "git+https://github.com/uni-helper/localForage-adapter.git"
   },
-  "bugs": "https://github.com/uni-helper/pkg-name/issues",
+  "bugs": "https://github.com/uni-helper/localForage-adapter/issues",
   "keywords": [],
   "sideEffects": false,
   "exports": {
