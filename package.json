@@ -44,6 +44,7 @@
     "bumpp": "^9.2.0",
     "eslint": "^8.51.0",
     "esno": "^0.17.0",
+    "localforage": "^1.10.0",
     "rimraf": "^5.0.5",
     "typescript": "^5.2.2",
     "unbuild": "^2.0.0",
