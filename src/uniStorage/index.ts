@@ -114,14 +114,21 @@ function getItem(key, callback) {
   return promise;
 }
 
+/**
+ * @description 迭代当前库的所有数据
+ * @param iterator 
+ * @param callback 
+ * @returns 
+ */
 function iterate(iterator, callback) {
   var self = this;
 
   var promise = self.ready().then(function () {
     var keyPrefix = self._dbInfo.keyPrefix;
     var keyPrefixLength = keyPrefix.length;
-    var length = uni.getStorageInfoSync().keys.length;
     var keys = uni.getStorageInfoSync().keys;
+    var length = keys.length;
+
     var iterationNumber = 1;
 
     for (var i = 0; i < length; i++) {
@@ -148,6 +155,177 @@ function iterate(iterator, callback) {
 }
 
 /**
+ * @description 获取当前库的所有key
+ * @param n 
+ * @param callback 
+ * @returns 
+ */
+function key(n, callback) {
+  var self = this;
+  var promise = self.ready().then(function () {
+    var dbInfo = self._dbInfo;
+    var result;
+    try {
+      result = uni.getStorageInfoSync().keys[n];
+    } catch (e) {
+      result = null;
+    }
+
+    if (result) {
+      result = result.substring(dbInfo.keyPrefix.length);
+    }
+
+    return result;
+  });
+  executeCallback(promise, callback);
+  return promise;
+
+}
+
+/**
+ * @description 获取当前库的所有key（数组）
+ * @param callback 
+ * @returns 
+ */
+function keys(callback) {
+  var self = this;
+  var promise = self.ready().then(function () {
+    var dbInfo = self._dbInfo;
+    var keyPrefix = dbInfo.keyPrefix;
+    var keys = uni.getStorageInfoSync().keys;
+    var length = keys.length;
+    var result: any[] = [];
+
+    for (var i = 0; i < length; i++) {
+      var itemKey = keys[i];
+      if (itemKey.indexOf(keyPrefix) === 0) {
+        result.push(itemKey.substring(keyPrefix.length));
+      }
+    }
+
+    return result;
+  });
+
+  executeCallback(promise, callback);
+  return promise;
+}
+
+/**
+ * @description 获取当前库的所有key的数量
+ * @param callback 
+ * @returns 
+ */
+function length(callback) {
+  var self = this;
+  var promise = self.keys().then(function (keys) {
+    return keys.length;
+  });
+
+  executeCallback(promise, callback);
+  return promise;
+}
+
+function removeItem(key, callback) {
+  var self = this;
+
+  key = normalizeKey(key);
+  var promise = self.ready().then(function () {
+    var dbInfo = self._dbInfo;
+    try {
+      uni.removeStorageSync(dbInfo.keyPrefix + key);
+    } catch (e) {
+      console.log(e)
+    }
+  });
+
+  executeCallback(promise, callback);
+  return promise;
+
+}
+
+/**
+ * @description 存储一个key-value
+ * @param key 
+ * @param value 
+ * @param callback 
+ * @returns 
+ */
+function setItem(key, value, callback) {
+  var self = this;
+
+  key = normalizeKey(key);
+  var promise = self.ready().then(function () {
+    if (value === undefined) {
+      value = null
+    }
+
+    var originalValue = value;
+
+    return new Promise(function (resolve, reject) {
+      var dbInfo = self._dbInfo;
+      dbInfo.serializer.serialize(value, function (value, error) {
+        if (error) {
+          reject(error)
+        } else {
+          try {
+            uni.setStorageSync(dbInfo.keyPrefix + key, value);
+            resolve(originalValue)
+          } catch (e) {
+            if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
+              reject(e)
+            }
+            reject(e)
+          }
+        }
+      })
+    })
+  });
+
+  executeCallback(promise, callback);
+  return promise;
+}
+
+function dropInstance(options, callback) {
+  callback = executeCallback(callback);
+
+  var currentConfig = this.config();
+  options = typeof options !== 'function' && options || {};
+  if (!options.name) {
+    options.name = options.name || currentConfig.name;
+    options.storeName = options.storeName || currentConfig.storeName;
+  }
+
+  var self = this;
+  var promise;
+  if (!options.name) {
+    promise = Promise.reject('没有指定库的名称');
+  } else {
+    promise = new Promise(function (resolve) {
+      if (!options.storeName) {
+        resolve(`${options.name}/`);
+      } else {
+        resolve(getKeyPrefix(options, self._defaultConfig));
+      }
+    }).then(function (keyPrefix) {
+      try {
+        for (var i = uni.getStorageInfoSync().keys.length - 1; i >= 0; i--) {
+          var key = uni.getStorageInfoSync().keys[i];
+          if (key.indexOf(keyPrefix) === 0) {
+            uni.removeStorageSync(key);
+          }
+        }
+      } catch (e) {
+
+      }
+    })
+  }
+
+  executeCallback(promise, callback);
+  return promise;
+
+}
+
+/**
  * @description 最终的驱动器成品
  */
 export const uniStorageDriver = {
@@ -158,6 +336,13 @@ export const uniStorageDriver = {
   _initStorage: initStorage,
   clear: clear,
   getItem: getItem,
+  iterate: iterate,
+  key: key,
+  keys: keys,
+  length: length,
+  removeItem: removeItem,
+  setItem: setItem,
+  dropInstance: dropInstance,
 }
 
 export default uniStorageDriver;
