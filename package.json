@@ -1,7 +1,7 @@
 {
   "name": "@uni-helper/localforage-adapter",
   "type": "module",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "packageManager": "pnpm@8.9.0",
   "description": "",
   "author": "Uni-Helper,censujiang",
@@ -30,7 +30,7 @@
   "scripts": {
     "build": "unbuild",
     "dev": "unbuild --stub",
-    "prepublishOnly": "nr build",
+    "prepublishOnly": "unbuild",
     "release": "bumpp && npm publish",
     "start": "esno src/index.ts",
     "test": "vitest",
