@@ -1,3 +1,7 @@
+import serializer from "localforage/src/utils/serializer";
+import executeCallback from "localforage/src/utils/executeCallback";
+import normalizeKey from 'localforage/src/utils/normalizeKey';
+
 declare const plus: any;
 
 //使用plus的sqlite重新实现一遍localForage
@@ -113,66 +117,76 @@ interface counter {
   //每一个属性为string类型的属性都是一个数据库的名称，属性的值为一个数字，表示该数据库有多少个操作在执行，默认为0
   [key: string]: number;
 }
-async function execute(dbName: string, sql: string) {
+async function execute(dbName: string, sql: string, returnResults = false) {
   counter[dbName]++;
   let result = false;
+  let queryResults;
+
   if (!isOpenDatabase(dbName)) {
     const openResult = await openDatabase(dbName);
-    if(!openResult) {
+    if (!openResult) {
       throw new Error("Failed to open database");
     }
   }
-  //开始事务
+
+  // 开始事务
   try {
     await transaction(dbName, 'begin');
-    result = await executeSql(dbName, sql);
-    //根据执行结果决定是否提交事务
-    if (result) {
+    const executionResult = await executeSql(dbName, sql);
+    
+    if (executionResult) {
       await transaction(dbName, 'commit');
+      result = true;
+
+      if (returnResults) {
+        queryResults = executionResult; // 如果需要返回结果，把结果保存到 queryResults
+      }
     } else {
       throw new Error("Failed to execute SQL operation");
     }
-  } catch(error) {
+
+  } catch (error) {
     await transaction(dbName, 'rollback');
     throw error;
   }
-  
+
   counter[dbName]--;
-  
+
   if (counter[dbName] === 0) {
     await closeDatabase(dbName);
   }
-  
-  return true;
+
+  return returnResults ? queryResults : result; // 根据参数返回相应的值
 }
+
 //往某数据库中执行查询的sql语句的综合方法，包括打开数据库、执行sql语句、关闭数据库（其中关闭数据库要判断是否还有其他操作在执行）
 async function select(dbName: string, sql: string) {
   counter[dbName]++;
-  let result: any = null;    
-    if (!isOpenDatabase(dbName)) {
-      // 打开数据库
-      const openResult = await openDatabase(dbName);
-      if(!openResult) {
-        throw new Error("Failed to open database");
-      }
-    }
-    
-    // 执行查询操作
-      result = await selectSql(dbName, sql);
-    
-    counter[dbName]--;
-    if (counter[dbName] === 0) {
-      // 如果没有其它正在执行的操作，关闭数据库
-      await closeDatabase(dbName);
-    }
-    
-    if (result !== null) {
-      // 返回查询结果
-      return result;
-    } else {
-      throw new Error("Failed to execute select operation");
+  let result: any = null;
+  if (!isOpenDatabase(dbName)) {
+    // 打开数据库
+    const openResult = await openDatabase(dbName);
+    if (!openResult) {
+      throw new Error("Failed to open database");
     }
   }
+
+  // 执行查询操作
+  result = await selectSql(dbName, sql);
+
+  counter[dbName]--;
+  if (counter[dbName] === 0) {
+    // 如果没有其它正在执行的操作，关闭数据库
+    await closeDatabase(dbName);
+  }
+
+  if (result !== null) {
+    // 返回查询结果
+    return result;
+  } else {
+    throw new Error("Failed to execute select operation");
+  }
+}
 
 //是否支持sqlite
 export const isSupportSqlite = () => {
@@ -224,94 +238,231 @@ export async function checkStore(dbName: string, storeName: string) {
  * 
  **/
 
-export async function setItem(key: string, value: any, dbName: string, storeName: string) {
-  await checkStore(dbName, storeName);
-  const sql = `INSERT OR REPLACE INTO ${storeName} (id, name) VALUES ('${key}', '${value}');`;
-  const result = await execute(dbName, sql);
-  if (result) {
-    return true;
-  } else {
-    return false;
-  }
-}
+/**
+ * @description 设置指定数据
+ * @param key 
+ * @param value
+ * @param dbName
+ * @param storeName
+ * @param callback 
+ * @returns 
+ */
 
-export async function getItem(key: string, dbName: string, storeName: string) {
-  await checkStore(dbName, storeName);
-  const sql = `SELECT name FROM ${storeName} WHERE id='${key}';`;
-  const result = await select(dbName, sql);
-  if (result.length > 0) {
-    return result[0].name;
-  } else {
-    return null;
-  }
-}
+export function setItem(key, value, dbName, storeName, callback) {
+  key = normalizeKey(key);
+  let promise = checkStore(dbName, storeName)
+    .then(() => {
+      if (value === undefined) {
+        value = null;
+      }
 
-export async function removeItem(key: string, dbName: string, storeName: string) {
-  await checkStore(dbName, storeName);
-  const sql = `DELETE FROM ${storeName} WHERE id='${key}';`;
-  const result = await execute(dbName, sql);
-  if (result) {
-    return true;
-  } else {
-    return false;
-  }
-}
-
-export async function clear(dbName: string, storeName: string) {
-  await checkStore(dbName, storeName);
-  const sql = `DELETE FROM ${storeName};`;
-  const result = await execute(dbName, sql);
-  if (result) {
-    return true;
-  } else {
-    return false;
-  }
-}
-
-export async function key(index: number, dbName: string, storeName: string) {
-  await checkStore(dbName, storeName);
-  const sql = `SELECT id FROM ${storeName} LIMIT ${index}, 1;`;
-  const result = await select(dbName, sql);
-  if (result.length > 0) {
-    return result[0].id;
-  } else {
-    return null;
-  }
-}
-
-export async function keys(dbName: string, storeName: string) {
-  await checkStore(dbName, storeName);
-  const sql = `SELECT id FROM ${storeName};`;
-  const result = await select(dbName, sql);
-  if (result.length > 0) {
-    return result.map((item: any) => {
-      return item.id;
+      const sql = `INSERT OR REPLACE INTO ${storeName} (id, name) VALUES ('${key}', '${value}');`;
+      return execute(dbName, sql);
+    })
+    .then(result => {
+      if (result) {
+        return true;
+      } else {
+        return Promise.reject('Set item failed');
+      }
+    })
+    .catch(error => {
+      executeCallback(Promise.reject(error), callback);
+      return Promise.reject(error);
     });
-  } else {
-    return null;
-  }
+
+  executeCallback(promise, callback);
+  return promise;
 }
 
-export async function length(dbName: string, storeName: string) {
-  //根据keys函数的数组长度来判断
-  const result = await keys(dbName, storeName);
-  if (result !== null) {
-    return result.length;
-  } else {
-    return 0;
-  }
-}
+/**
+ * @description 获取指定数据
+ * @param key 
+ * @param dbName
+ * @param storeName
+ * @param callback 
+ * @returns 
+ */
 
-export async function iterate(callback: Function,dbName: string, storeName: string) {
-  await checkStore(dbName, storeName);
-  const sql = `SELECT id, name FROM ${storeName};`;
-  const result = await select(dbName, sql);
-  if (result.length > 0) {
-    result.forEach((item: any) => {
-      callback(item.name, item.id);
+export function getItem(key, dbName, storeName, callback) {
+  key = normalizeKey(key);
+  let promise = checkStore(dbName, storeName)
+    .then(() => {
+      const sql = `SELECT name FROM ${storeName} WHERE id='${key}';`;
+      return select(dbName, sql);
+    })
+    .then(result => {
+      if (result.length > 0) {
+        return result[0].name;
+      } else {
+        return null;
+      }
+    })
+    .catch(error => {
+      executeCallback(Promise.reject(error), callback);
+      return Promise.reject(error);
     });
-    return result;
-  }else{
-    return []
-  }
+
+  executeCallback(promise, callback);
+  return promise;
+}
+
+/**
+ * @description 删除指定数据
+ * @param key 
+ * @param dbName
+ * @param storeName
+ * @param callback 
+ * @returns 
+ */
+
+export function removeItem(key, dbName, storeName, callback) {
+  key = normalizeKey(key);
+  let promise = checkStore(dbName, storeName)
+    .then(() => {
+      const sql = `DELETE FROM ${storeName} WHERE id='${key}';`;
+      return execute(dbName, sql);
+    })
+    .then(result => {
+      if (result) {
+        return true;
+      } else {
+        return false;
+      }
+    })
+    .catch(error => {
+      executeCallback(Promise.reject(error), callback);
+      return Promise.reject(error);
+    });
+
+  executeCallback(promise, callback);
+  return promise;
+}
+
+/**
+ * @description 清空某个表的全部数据
+ * @param dbName
+ * @param storeName
+ * @param callback 
+ * @returns 
+ */
+
+export function clear(dbName, storeName, callback) {
+  let promise = checkStore(dbName, storeName)
+    .then(() => {
+      const sql = `DELETE FROM ${storeName};`;
+      return execute(dbName, sql);
+    })
+    .then(result => {
+      if (result) {
+        return true;
+      } else {
+        return false;
+      }
+    })
+    .catch(error => {
+      executeCallback(Promise.reject(error), callback);
+      return Promise.reject(error);
+    });
+
+  executeCallback(promise, callback);
+  return promise;
+}
+
+/**
+ * @description 获取指定库的指定key
+ * @param index
+ * @param dbName
+ * @param storeName
+ * @param callback 
+ * @returns 
+ */
+
+export function key(index, dbName, storeName, callback) {
+  let promise = checkStore(dbName, storeName)
+    .then(() => {
+      const sql = `SELECT id FROM ${storeName} LIMIT ${index}, 1;`;
+      return execute(dbName, sql);
+    })
+    .then(result => {
+      if (result.length > 0) {
+        return result[0].id;
+      } else {
+        return null;
+      }
+    })
+    .catch(error => {
+      executeCallback(Promise.reject(error), callback);
+      return Promise.reject(error);
+    });
+
+  executeCallback(promise, callback);
+  return promise;
+}
+
+/**
+ * @description 获取指定库的全部keys
+ * @param dbName
+ * @param storeName
+ * @param callback 
+ * @returns 
+ */
+
+export function keys(dbName, storeName, callback) {
+  let promise = checkStore(dbName, storeName)
+    .then(() => {
+      const sql = `SELECT id FROM ${storeName};`;
+      return execute(dbName, sql);
+    })
+    .then(result => {
+      if (result.length > 0) {
+        return result.map(item => item.id);
+      } else {
+        return [];
+      }
+    })
+    .catch(error => {
+      executeCallback(Promise.reject(error), callback);
+      return Promise.reject(error);
+    });
+
+  executeCallback(promise, callback);
+  return promise;
+}
+
+/**
+ * @description 迭代指定库的所有数据
+ * @param dbName 
+ * @param storeName
+ * @param callback 
+ * @returns 
+ */
+
+export async function iterate(dbName, storeName, callback) {
+  var self = this;
+  
+  var promise = self.ready().then(async function() {
+    await checkStore(dbName, storeName);
+    const sql = `SELECT id, name FROM ${storeName};`;
+    const result = await select(dbName, sql);
+
+    var iterationNumber = 1;
+
+    if (result.length > 0) {
+      let value;
+      for(let item of result) {
+        value = callback(item.name, item.id, iterationNumber++);
+
+        if(value !== void 0) {
+          return value;
+        }
+      }
+      return result;
+    } else {
+      return [];
+    }
+  });
+
+  executeCallback(promise, callback);
+  return promise;
 }
