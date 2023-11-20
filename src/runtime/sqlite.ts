@@ -1,4 +1,4 @@
-import serializer from "localforage/src/utils/serializer";
+import { SQLITE } from './core';
 import executeCallback from "localforage/src/utils/executeCallback";
 import normalizeKey from 'localforage/src/utils/normalizeKey';
 
@@ -188,28 +188,6 @@ async function select(dbName: string, sql: string) {
   }
 }
 
-//是否支持sqlite
-export const isSupportSqlite = () => {
-  let result = false;
-  // #ifdef APP-PLUS
-  let loading = true
-  openDatabase('isSupportSqlite').then((res) => {
-    res = result;
-  }).catch((e) => {
-    e = result;
-  }).finally(() => {
-    loading = false
-  })
-  while (loading) {
-    //休眠100毫秒
-    setTimeout(() => {
-      loading = false
-    }, 100)
-  }
-  // #endif
-  return result;
-}
-
 //检查数据库中的表是否存在，如果不存在则创建，如果存在则不做任何操作
 //创建成功或者表已存在返回true，创建失败返回false
 export async function checkStore(dbName: string, storeName: string) {
@@ -239,6 +217,56 @@ export async function checkStore(dbName: string, storeName: string) {
  **/
 
 /**
+ * @description 是否支持使用sqlite方式进行存储
+ * @return {Boolean} true 支持 false 不支持
+ */
+function support(): boolean {
+  try {
+    return (
+      typeof plus !== 'undefined' &&
+      plus.sqlite !== null
+    );
+  } catch (e) {
+    return false;
+  }
+}
+
+
+/**
+ * @description 初始化数据库
+ * @param dbName 
+ * @param callback 
+ * @returns 
+ */
+export function initStorage(dbName, callback) {
+  const promise = openDatabase(dbName)
+    .then(() => {
+      return true;
+    })
+    .catch(error => {
+      executeCallback(Promise.reject(error), callback);
+      return Promise.reject(error);
+    });
+
+  executeCallback(promise, callback);
+  return promise;
+}
+
+/**
+ * @description 删除数据库
+ * @param {string} dbName 
+ * @param {Function} callback 
+ * @returns {Promise} 
+ */
+export function dropInstance(dbName, callback) {
+  const sql = `DROP DATABASE IF EXISTS ${dbName};`;
+  const promise = execute(dbName, sql);
+
+  executeCallback(promise, callback);
+  return promise;
+}
+
+/**
  * @description 设置指定数据
  * @param key 
  * @param value
@@ -247,7 +275,6 @@ export async function checkStore(dbName: string, storeName: string) {
  * @param callback 
  * @returns 
  */
-
 export function setItem(key, value, dbName, storeName, callback) {
   key = normalizeKey(key);
   let promise = checkStore(dbName, storeName)
@@ -283,7 +310,6 @@ export function setItem(key, value, dbName, storeName, callback) {
  * @param callback 
  * @returns 
  */
-
 export function getItem(key, dbName, storeName, callback) {
   key = normalizeKey(key);
   let promise = checkStore(dbName, storeName)
@@ -315,7 +341,6 @@ export function getItem(key, dbName, storeName, callback) {
  * @param callback 
  * @returns 
  */
-
 export function removeItem(key, dbName, storeName, callback) {
   key = normalizeKey(key);
   let promise = checkStore(dbName, storeName)
@@ -346,7 +371,6 @@ export function removeItem(key, dbName, storeName, callback) {
  * @param callback 
  * @returns 
  */
-
 export function clear(dbName, storeName, callback) {
   let promise = checkStore(dbName, storeName)
     .then(() => {
@@ -377,7 +401,6 @@ export function clear(dbName, storeName, callback) {
  * @param callback 
  * @returns 
  */
-
 export function key(index, dbName, storeName, callback) {
   let promise = checkStore(dbName, storeName)
     .then(() => {
@@ -407,7 +430,6 @@ export function key(index, dbName, storeName, callback) {
  * @param callback 
  * @returns 
  */
-
 export function keys(dbName, storeName, callback) {
   let promise = checkStore(dbName, storeName)
     .then(() => {
@@ -431,13 +453,41 @@ export function keys(dbName, storeName, callback) {
 }
 
 /**
+ * @description 获取当前库的所有key的数量
+ * @param dbName
+ * @param storeName
+ * @param callback
+ * @returns
+ */
+export function length(dbName, storeName, callback) {
+  let promise = checkStore(dbName, storeName)
+    .then(() => {
+      const sql = `SELECT COUNT(id) AS count FROM ${storeName};`;
+      return select(dbName, sql);
+    })
+    .then(result => {
+      if (result.length > 0) {
+        return result[0].count;
+      } else {
+        return 0;
+      }
+    })
+    .catch(error => {
+      executeCallback(Promise.reject(error), callback);
+      return Promise.reject(error);
+    });
+
+  executeCallback(promise, callback);
+  return promise;
+}
+
+/**
  * @description 迭代指定库的所有数据
  * @param dbName 
  * @param storeName
  * @param callback 
  * @returns 
  */
-
 export async function iterate(dbName, storeName, callback) {
   var self = this;
   
@@ -466,3 +516,25 @@ export async function iterate(dbName, storeName, callback) {
   executeCallback(promise, callback);
   return promise;
 }
+
+/**
+ * @description 最终的驱动器成品
+ */
+export const sqliteDriver = {
+  //我们的名字
+  _driver: 'sqliteDriver',
+  // 是否支持
+  _support: support,
+  _initStorage: initStorage,
+  clear: clear,
+  getItem: getItem,
+  iterate: iterate,
+  key: key,
+  keys: keys,
+  length: length,
+  removeItem: removeItem,
+  setItem: setItem,
+  dropInstance: dropInstance,
+}
+
+export default sqliteDriver;
