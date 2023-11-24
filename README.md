@@ -2,18 +2,30 @@
 
 [![NPM version](https://img.shields.io/npm/v/@uni-helper/localforage-adapter?color=a1b858&label=)](https://www.npmjs.com/package/@uni-helper/localforage-adapter)
 
-## 注意
+此项目所有主要功能和目标均已完成，但是由于未经过严格测试，所以暂时不建议在生产环境中使用。
 
-此项目正在开发中，目前可用的驱动器仅 `uniStorage`，使用方法如下所示：
+## 安装
+
+```bash
+# pnpm
+pnpm install @uni-helper/localforage-adapter
+# npm
+npm install @uni-helper/localforage-adapter --save
+# yarn
+yarn add @uni-helper/localforage-adapter
+```
+
+## 使用
 
 ```js
-import { uniStorageDriver } from "@uni-helper/localforage-adapter"
+import { uniStorageDriver, sqliteDriver } from "@uni-helper/localforage-adapter"
 import localforage from "localforage"
 
 localforage.defineDriver(uniStorageDriver);
 // 可以使用 #ifdef 等UniAPP特有条件编译注释符
 localforage.setDriver([
   uniStorageDriver._driver // 或者"uniStorageDriver"
+  sqliteDriver._driver // 或者"sqliteDriver"
 ]);
 ```
 
