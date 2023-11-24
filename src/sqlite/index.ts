@@ -1,4 +1,3 @@
-import { SQLITE } from './core';
 import executeCallback from "localforage/src/utils/executeCallback";
 import normalizeKey from 'localforage/src/utils/normalizeKey';
 
