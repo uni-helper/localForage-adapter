@@ -21,11 +21,12 @@ yarn add @uni-helper/localforage-adapter
 import { uniStorageDriver, sqliteDriver } from "@uni-helper/localforage-adapter"
 import localforage from "localforage"
 
-localforage.defineDriver(uniStorageDriver);
+localforage.defineDriver(uniStorageDriver); // 全端支持，但是还是建议在H5端使用lf自带的IndexedDB
+localforage.defineDriver(sqliteDriver); // 仅支持APP端，并需要基座包支持SQLite模块
 // 可以使用 #ifdef 等UniAPP特有条件编译注释符
-localforage.setDriver([
-  uniStorageDriver._driver // 或者"uniStorageDriver"
+localforage.setDriver([ //会按顺序依次尝试，直到找到可用的驱动
   sqliteDriver._driver // 或者"sqliteDriver"
+  uniStorageDriver._driver // 或者"uniStorageDriver"
 ]);
 ```
 
