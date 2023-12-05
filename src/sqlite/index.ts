@@ -2,7 +2,7 @@ import executeCallback from "localforage/src/utils/executeCallback";
 import normalizeKey from 'localforage/src/utils/normalizeKey';
 
 declare const plus: any;
-
+let name, storeName;
 //使用plus的sqlite重新实现一遍localForage
 
 /**
@@ -236,6 +236,9 @@ export async function checkStore(name: string, storeName: string) {
  * @returns 
  */
 export function initStorage(options, callback) {
+  name = options.name;
+  storeName = options.storeName;
+  
   const isDatabaseOpen = isOpenDatabase(options.name);
   if (isDatabaseOpen) {
     executeCallback(Promise.resolve(true), callback);
@@ -261,7 +264,7 @@ export function initStorage(options, callback) {
  * @param {Function} callback 
  * @returns {Promise} 
  */
-export function dropInstance(name, callback) {
+export function dropInstance(callback) {
   const sql = `DROP DATABASE IF EXISTS ${name};`;
   const promise = execute(name, sql);
 
@@ -273,20 +276,21 @@ export function dropInstance(name, callback) {
  * @description 设置指定数据
  * @param key 
  * @param value
- * @param options
+ * @param name
+ * @param storeName
  * @param callback 
  * @returns 
  */
-export function setItem(key, value, options, callback) {
+export function setItem(key, value, callback) {
   key = normalizeKey(key);
-  let promise = checkStore(options.name, options.storeName)
+  let promise = checkStore(name, storeName)
     .then(() => {
       if (value === undefined) {
         value = null;
       }
 
-      const sql = `INSERT OR REPLACE INTO ${options.storeName} (id, name) VALUES ('${key}', '${value}');`;
-      return execute(options.name, sql);
+      const sql = `INSERT OR REPLACE INTO ${storeName} (id, name) VALUES ('${key}', '${value}');`;
+      return execute(name, sql);
     })
     .then(result => {
       if (result) {
@@ -307,16 +311,16 @@ export function setItem(key, value, options, callback) {
 /**
  * @description 获取指定数据
  * @param key 
- * @param options
+ * @param name
+ * @param storeName
  * @param callback 
  * @returns 
  */
-export function getItem(key, options, callback) {
-  let name = options.name
+export function getItem(key, callback) {
   key = normalizeKey(key);
-  let promise = checkStore(name, options.storeName)
+  let promise = checkStore(name, storeName)
     .then(() => {
-      const sql = `SELECT name FROM ${options.storeName} WHERE id='${key}';`;
+      const sql = `SELECT name FROM ${storeName} WHERE id='${key}';`;
       return select(name, sql);
     })
     .then(result => {
@@ -343,7 +347,7 @@ export function getItem(key, options, callback) {
  * @param callback 
  * @returns 
  */
-export function removeItem(key, name, storeName, callback) {
+export function removeItem(key, callback) {
   key = normalizeKey(key);
   let promise = checkStore(name, storeName)
     .then(() => {
@@ -373,7 +377,7 @@ export function removeItem(key, name, storeName, callback) {
  * @param callback 
  * @returns 
  */
-export function clear(name, storeName, callback) {
+export function clear(callback) {
   let promise = checkStore(name, storeName)
     .then(() => {
       const sql = `DELETE FROM ${storeName};`;
@@ -403,7 +407,7 @@ export function clear(name, storeName, callback) {
  * @param callback 
  * @returns 
  */
-export function key(index, name, storeName, callback) {
+export function key(index, callback) {
   let promise = checkStore(name, storeName)
     .then(() => {
       const sql = `SELECT id FROM ${storeName} LIMIT ${index}, 1;`;
@@ -432,7 +436,7 @@ export function key(index, name, storeName, callback) {
  * @param callback 
  * @returns 
  */
-export function keys(name, storeName, callback) {
+export function keys(callback) {
   let promise = checkStore(name, storeName)
     .then(() => {
       const sql = `SELECT id FROM ${storeName};`;
@@ -461,7 +465,7 @@ export function keys(name, storeName, callback) {
  * @param callback
  * @returns
  */
-export function length(name, storeName, callback) {
+export function length(callback) {
   let promise = checkStore(name, storeName)
     .then(() => {
       const sql = `SELECT COUNT(id) AS count FROM ${storeName};`;
@@ -490,7 +494,7 @@ export function length(name, storeName, callback) {
  * @param callback 
  * @returns 
  */
-export async function iterate(name, storeName, callback) {
+export async function iterate(callback) {
   var self = this;
   
   var promise = self.ready().then(async function() {
