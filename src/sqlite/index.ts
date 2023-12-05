@@ -273,21 +273,20 @@ export function dropInstance(name, callback) {
  * @description 设置指定数据
  * @param key 
  * @param value
- * @param name
- * @param storeName
+ * @param options
  * @param callback 
  * @returns 
  */
-export function setItem(key, value, name, storeName, callback) {
+export function setItem(key, value, options, callback) {
   key = normalizeKey(key);
-  let promise = checkStore(name, storeName)
+  let promise = checkStore(options.name, options.storeName)
     .then(() => {
       if (value === undefined) {
         value = null;
       }
 
-      const sql = `INSERT OR REPLACE INTO ${storeName} (id, name) VALUES ('${key}', '${value}');`;
-      return execute(name, sql);
+      const sql = `INSERT OR REPLACE INTO ${options.storeName} (id, name) VALUES ('${key}', '${value}');`;
+      return execute(options.name, sql);
     })
     .then(result => {
       if (result) {
