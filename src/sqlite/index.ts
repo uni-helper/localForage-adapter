@@ -219,13 +219,13 @@ export async function checkStore(name: string, storeName: string) {
  * @description 是否支持使用sqlite方式进行存储
  * @return {Boolean} true 支持 false 不支持
  */
-function support(): boolean {
-  try {
-    return plus.sqlite !== undefined
-  } catch (e) {
-    return false;
-  }
-}
+// function support(): boolean {
+//   try {
+//     return plus.sqlite !== undefined
+//   } catch (e) {
+//     return false;
+//   }
+// }
 
 
 /**
