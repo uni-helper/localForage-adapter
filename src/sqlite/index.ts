@@ -307,8 +307,7 @@ export function setItem(key, value, options, callback) {
 /**
  * @description 获取指定数据
  * @param key 
- * @param name
- * @param storeName
+ * @param options
  * @param callback 
  * @returns 
  */
