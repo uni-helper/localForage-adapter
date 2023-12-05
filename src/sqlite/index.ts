@@ -235,17 +235,23 @@ function support(): boolean {
  * @returns 
  */
 export function initStorage(options, callback) {
-  const promise = openDatabase(options.name)
-    .then(() => {
-      return true;
-    })
-    .catch(error => {
-      executeCallback(Promise.reject(error), callback);
-      return Promise.reject(error);
-    });
-
-  executeCallback(promise, callback);
-  return promise;
+  const isDatabaseOpen = isOpenDatabase(options.name);
+  if (isDatabaseOpen) {
+    executeCallback(Promise.resolve(true), callback);
+    return Promise.resolve(true);
+  } else {
+    const promise = openDatabase(options.name)
+      .then(() => {
+        executeCallback(Promise.resolve(true), callback);
+        return true;
+      })
+      .catch(error => {
+        executeCallback(Promise.reject(error), callback);
+        return Promise.reject(error);
+      });
+  
+    return promise;
+  }
 }
 
 /**
