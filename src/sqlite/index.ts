@@ -520,7 +520,7 @@ export const sqliteDriver = {
   //我们的名字
   _driver: 'sqliteDriver',
   // 是否支持
-  _support: support,
+  // _support: support,
   _initStorage: initStorage,
   clear: clear,
   getItem: getItem,
