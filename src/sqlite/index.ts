@@ -312,11 +312,12 @@ export function setItem(key, value, options, callback) {
  * @param callback 
  * @returns 
  */
-export function getItem(key, name, storeName, callback) {
+export function getItem(key, options, callback) {
+  let name = options.name
   key = normalizeKey(key);
-  let promise = checkStore(name, storeName)
+  let promise = checkStore(name, options.storeName)
     .then(() => {
-      const sql = `SELECT name FROM ${storeName} WHERE id='${key}';`;
+      const sql = `SELECT name FROM ${options.storeName} WHERE id='${key}';`;
       return select(name, sql);
     })
     .then(result => {
