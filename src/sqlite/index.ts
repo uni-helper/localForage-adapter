@@ -222,8 +222,7 @@ export async function checkStore(name: string, storeName: string) {
 function support(): boolean {
   try {
     return (
-      typeof plus !== 'undefined' &&
-      plus.sqlite !== null
+      typeof plus.sqlite !== undefined
     );
   } catch (e) {
     return false;
