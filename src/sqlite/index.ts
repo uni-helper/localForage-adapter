@@ -233,12 +233,12 @@ function support(): boolean {
 
 /**
  * @description 初始化数据库
- * @param name 
+ * @param options 
  * @param callback 
  * @returns 
  */
-export function initStorage(name, callback) {
-  const promise = openDatabase(name)
+export function initStorage(options, callback) {
+  const promise = openDatabase(options.name)
     .then(() => {
       return true;
     })
