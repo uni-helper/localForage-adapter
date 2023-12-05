@@ -160,6 +160,7 @@ async function execute(name: string, sql: string, returnResults = false) {
 
 //往某数据库中执行查询的sql语句的综合方法，包括打开数据库、执行sql语句、关闭数据库（其中关闭数据库要判断是否还有其他操作在执行）
 async function select(name: string, sql: string) {
+  let counter = {};
   counter[name]++;
   let result: any = null;
   if (!isOpenDatabase(name)) {
@@ -190,7 +191,7 @@ async function select(name: string, sql: string) {
 //检查数据库中的表是否存在，如果不存在则创建，如果存在则不做任何操作
 //创建成功或者表已存在返回true，创建失败返回false
 export async function checkStore(name: string, storeName: string) {
-  const sql = `SELECT ${name} FROM sqlite_master WHERE type='table' AND name='${storeName}';`;
+  const sql = `SELECT name FROM sqlite_master WHERE type='table' AND name='${storeName}';`;
   const result = await select(name, sql);
   if (result.length > 0) {
     return true; // 表已存在
