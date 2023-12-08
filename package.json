@@ -1,7 +1,7 @@
 {
   "name": "@uni-helper/localforage-adapter",
   "type": "module",
-  "version": "0.1.20",
+  "version": "0.1.21",
   "packageManager": "pnpm@8.9.0",
   "description": "",
   "author": "Uni-Helper,censujiang",
