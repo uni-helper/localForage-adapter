@@ -32,10 +32,17 @@ async function openDatabase(name: string): Promise<boolean> {
 
 //数据库是否打开
 const isOpenDatabase = (name: string) => {
-  return plus.sqlite.isOpenDatabase({
-    name: name,
-    path: '_doc/localForage/' + name + '.db'
-  })
+  try {
+    const isOpen = plus.sqlite.isOpenDatabase({
+      name: name,
+      path: '_doc/localForage/' + name + '.db',
+    });
+    console.log('Database ' + name + ' is open:', isOpen);
+    return isOpen;
+  } catch (error) {
+    console.error('Error checking if database ' + name + ' is open:', error);
+    return false;
+  }
 }
 
 //关闭数据库
@@ -235,22 +242,22 @@ export async function checkStore(name: string, storeName: string) {
  * @param callback 
  * @returns 
  */
-export function initStorage(options, callback) {
+export function _initStorage(options) {
   name = options.name;
   storeName = options.storeName;
   
   const isDatabaseOpen = isOpenDatabase(options.name);
   if (isDatabaseOpen) {
-    executeCallback(Promise.resolve(true), callback);
+    executeCallback(Promise.resolve(true));
     return Promise.resolve(true);
   } else {
     const promise = openDatabase(options.name)
       .then(() => {
-        executeCallback(Promise.resolve(true), callback);
+        executeCallback(Promise.resolve(true));
         return true;
       })
       .catch(error => {
-        executeCallback(Promise.reject(error), callback);
+        executeCallback(Promise.reject(error));
         return Promise.reject(error);
       });
   
@@ -538,7 +545,7 @@ export const sqliteDriver = {
   _driver: 'sqliteDriver',
   // 是否支持
   // _support: support,
-  _initStorage: initStorage,
+  _initStorage: _initStorage,
   clear: clear,
   getItem: getItem,
   iterate: iterate,
