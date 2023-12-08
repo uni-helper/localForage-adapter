@@ -197,8 +197,8 @@ async function select(name: string, sql: string) {
 
 //检查数据库中的表是否存在，如果不存在则创建，如果存在则不做任何操作
 //创建成功或者表已存在返回true，创建失败返回false
-export async function checkStore(name: string, storeName: string) {
-  const sql = `SELECT values FROM ${name} WHERE type='table' AND values='${storeName}';`;
+export async function checkStore() {
+  const sql = `SELECT key FROM ${storeName} LIMIT 1;;`;
   const result = await select(name, sql);
   if (result.length > 0) {
     return true; // 表已存在
@@ -239,7 +239,6 @@ export async function checkStore(name: string, storeName: string) {
 /**
  * @description 初始化数据库
  * @param options 
- * @param callback 
  * @returns 
  */
 export function _initStorage(options) {
@@ -270,7 +269,6 @@ export function _initStorage(options) {
 
 /**
  * @description 删除数据库
- * @param {string} name 
  * @param {Function} callback 
  * @returns {Promise} 
  */
@@ -286,14 +284,13 @@ export function dropInstance(callback) {
  * @description 设置指定数据
  * @param key 
  * @param value
- * @param name
- * @param storeName
+
  * @param callback 
  * @returns 
  */
 export function setItem(key, value, callback) {
   key = normalizeKey(key);
-  let promise = checkStore(name, storeName)
+  let promise = checkStore()
     .then(() => {
       if (value === undefined) {
         value = null;
@@ -322,14 +319,13 @@ export function setItem(key, value, callback) {
 /**
  * @description 获取指定数据
  * @param key 
- * @param name
- * @param storeName
+
  * @param callback 
  * @returns 
  */
 export function getItem(key, callback) {
   key = normalizeKey(key);
-  let promise = checkStore(name, storeName)
+  let promise = checkStore()
     .then(() => {
       const sql = `SELECT key FROM ${storeName} WHERE key ='${key}';`;
       return select(name, sql);
@@ -354,14 +350,13 @@ export function getItem(key, callback) {
 /**
  * @description 删除指定数据
  * @param key 
- * @param name
- * @param storeName
+
  * @param callback 
  * @returns 
  */
 export function removeItem(key, callback) {
   key = normalizeKey(key);
-  let promise = checkStore(name, storeName)
+  let promise = checkStore()
     .then(() => {
       const sql = `DELETE FROM ${storeName} WHERE key ='${key}';`;
       return execute(name, sql);
@@ -385,13 +380,12 @@ export function removeItem(key, callback) {
 
 /**
  * @description 清空某个表的全部数据
- * @param name
- * @param storeName
+
  * @param callback 
  * @returns 
  */
 export function clear(callback) {
-  let promise = checkStore(name, storeName)
+  let promise = checkStore()
     .then(() => {
       const sql = `DELETE FROM ${storeName};`;
       return execute(name, sql);
@@ -416,13 +410,11 @@ export function clear(callback) {
 /**
  * @description 获取指定库的指定key
  * @param index
- * @param name
- * @param storeName
  * @param callback 
  * @returns 
  */
 export function key(index, callback) {
-  let promise = checkStore(name, storeName)
+  let promise = checkStore()
     .then(() => {
       const sql = `SELECT key FROM ${storeName} LIMIT ${index}, 1;`;
       return execute(name, sql);
@@ -446,13 +438,11 @@ export function key(index, callback) {
 
 /**
  * @description 获取指定库的全部keys
- * @param name
- * @param storeName
  * @param callback 
  * @returns 
  */
 export function keys(callback) {
-  let promise = checkStore(name, storeName)
+  let promise = checkStore()
     .then(() => {
       const sql = `SELECT key FROM ${storeName};`;
       return execute(name, sql);
@@ -476,13 +466,11 @@ export function keys(callback) {
 
 /**
  * @description 获取当前库的所有key的数量
- * @param name
- * @param storeName
  * @param callback
  * @returns
  */
 export function length(callback) {
-  let promise = checkStore(name, storeName)
+  let promise = checkStore()
     .then(() => {
       const sql = `SELECT COUNT(key) AS count FROM ${storeName};`;
       return select(name, sql);
@@ -515,7 +503,7 @@ export async function iterate(callback) {
   var self = this;
   
   var promise = self.ready().then(async function() {
-    await checkStore(name, storeName);
+    await checkStore();
     const sql = `SELECT key, values FROM ${storeName};`;
     const result = await select(name, sql);
 
