@@ -297,7 +297,6 @@ export function setItem(key, value, callback) {
       if (value === undefined) {
         value = null;
       }
-
       const sql = `INSERT OR REPLACE INTO ${storeName} (key, value) VALUES ('${key}', '${value}');`;
       return execute(sql);
     })
@@ -321,7 +320,6 @@ export function setItem(key, value, callback) {
 /**
  * @description 获取指定数据
  * @param key 
-
  * @param callback 
  * @returns 
  */
