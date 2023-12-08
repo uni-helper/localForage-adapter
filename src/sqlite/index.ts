@@ -63,7 +63,7 @@ async function closeDatabase() {
 //执行事务
 //operation ，类型为string，并且只有三个可选值：begin、commit、rollback
 type operation = 'begin' | 'commit' | 'rollback';
-async function transaction(name: string, operation: operation) {
+async function transaction(operation: operation) {
   return new Promise((resolve, reject) => {
     plus.sqlite.transaction({
       name: name,
@@ -79,7 +79,7 @@ async function transaction(name: string, operation: operation) {
 }
 
 //执行sql语句
-async function executeSql(name: string, sql: string): Promise<boolean> {
+async function executeSql(sql: string): Promise<boolean> {
   return new Promise((resolve, reject) => {
     plus.sqlite.executeSql({
       name: name,
@@ -95,7 +95,7 @@ async function executeSql(name: string, sql: string): Promise<boolean> {
 }
 
 //执行查询的sql语句
-async function selectSql(name: string, sql: string): Promise<boolean> {
+async function selectSql(sql: string): Promise<boolean> {
   return new Promise((resolve, reject) => {
     plus.sqlite.selectSql({
       name: name,
@@ -138,11 +138,11 @@ async function execute(sql: string, returnResults = false) {
 
   // 开始事务
   try {
-    await transaction(name, 'begin');
-    const executionResult = await executeSql(name, sql);
+    await transaction('begin');
+    const executionResult = await executeSql(sql);
     
     if (executionResult) {
-      await transaction(name, 'commit');
+      await transaction('commit');
       result = true;
 
       if (returnResults) {
@@ -153,7 +153,7 @@ async function execute(sql: string, returnResults = false) {
     }
 
   } catch (error) {
-    await transaction(name, 'rollback');
+    await transaction('rollback');
     throw error;
   }
 
@@ -180,7 +180,7 @@ async function select(sql: string) {
   }
 
   // 执行查询操作
-  result = await selectSql(name, sql);
+  result = await selectSql(sql);
 
   counter[name]--;
   if (counter[name] === 0) {
@@ -199,6 +199,8 @@ async function select(sql: string) {
 // 检查数据库中的表是否存在，如果不存在则创建，如果存在则不做任何操作
 // 创建成功或者表已存在返回true，创建失败返回false
 export async function checkStore() {
+  console.log(name)
+  console.log(storeName)
   // 查询在 sqlite_master 表中是否存在名为 storeName 的表
   const sql = `SELECT name FROM sqlite_master WHERE type='table' AND name='${storeName}';`;
   try {
@@ -207,11 +209,13 @@ export async function checkStore() {
       return true; // 表已存在
     } else {
       // 表不存在，试图创建它
-      const sql = `CREATE TABLE ${storeName} (key PRIMARY KEY, values);`;
+      const sql = `CREATE TABLE ${storeName} (key PRIMARY KEY, value);`;
       const createAction = await execute(sql);
       return createAction !== undefined && createAction !== false; // 如果 createAction 非 undefined 且非 false，意味着创建成功
     }
   } catch (err) {
+    console.log(name)
+    console.log(storeName)
     console.error('An error occurred when checking or creating the table:', err);
     return false; // 发生错误，返回false
   }
@@ -294,7 +298,7 @@ export function setItem(key, value, callback) {
         value = null;
       }
 
-      const sql = `INSERT OR REPLACE INTO ${storeName} (key, values) VALUES ('${key}', '${value}');`;
+      const sql = `INSERT OR REPLACE INTO ${storeName} (key, value) VALUES ('${key}', '${value}');`;
       return execute(sql);
     })
     .then(result => {
@@ -502,7 +506,7 @@ export async function iterate(callback) {
   
   var promise = self.ready().then(async function() {
     await checkStore();
-    const sql = `SELECT key, values FROM ${storeName};`;
+    const sql = `SELECT key, value FROM ${storeName};`;
     const result = await select(sql);
 
     var iterationNumber = 1;
