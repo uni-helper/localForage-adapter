@@ -300,8 +300,9 @@ export function setItem(key, value, callback) {
       }
     })
     .catch(error => {
-      executeCallback(Promise.reject(error), callback);
-      return Promise.reject(error);
+      console.error("1：An error occurred:", error); // 处理异常并输出错误信息
+      executeCallback(null, callback); // 返回默认值或执行其他操作
+      return null; // 返回一个默认值
     });
 
   executeCallback(promise, callback);
@@ -331,8 +332,9 @@ export function getItem(key, callback) {
       }
     })
     .catch(error => {
-      executeCallback(Promise.reject(error), callback);
-      return Promise.reject(error);
+      console.error("2：An error occurred:", error); // 处理异常并输出错误信息
+      executeCallback(null, callback); // 返回默认值或执行其他操作
+      return null; // 返回一个默认值
     });
 
   executeCallback(promise, callback);
@@ -362,8 +364,9 @@ export function removeItem(key, callback) {
       }
     })
     .catch(error => {
-      executeCallback(Promise.reject(error), callback);
-      return Promise.reject(error);
+      console.error("3：An error occurred:", error); // 处理异常并输出错误信息
+      executeCallback(null, callback); // 返回默认值或执行其他操作
+      return null; // 返回一个默认值
     });
 
   executeCallback(promise, callback);
@@ -391,8 +394,9 @@ export function clear(callback) {
       }
     })
     .catch(error => {
-      executeCallback(Promise.reject(error), callback);
-      return Promise.reject(error);
+      console.error("4：An error occurred:", error); // 处理异常并输出错误信息
+      executeCallback(null, callback); // 返回默认值或执行其他操作
+      return null; // 返回一个默认值
     });
 
   executeCallback(promise, callback);
@@ -421,8 +425,9 @@ export function key(index, callback) {
       }
     })
     .catch(error => {
-      executeCallback(Promise.reject(error), callback);
-      return Promise.reject(error);
+      console.error("5：An error occurred:", error); // 处理异常并输出错误信息
+      executeCallback(null, callback); // 返回默认值或执行其他操作
+      return null; // 返回一个默认值
     });
 
   executeCallback(promise, callback);
@@ -450,8 +455,9 @@ export function keys(callback) {
       }
     })
     .catch(error => {
-      executeCallback(Promise.reject(error), callback);
-      return Promise.reject(error);
+      console.error("6：An error occurred:", error); // 处理异常并输出错误信息
+      executeCallback(null, callback); // 返回默认值或执行其他操作
+      return null; // 返回一个默认值
     });
 
   executeCallback(promise, callback);
@@ -479,8 +485,9 @@ export function length(callback) {
       }
     })
     .catch(error => {
-      executeCallback(Promise.reject(error), callback);
-      return Promise.reject(error);
+      console.error("7：An error occurred:", error); // 处理异常并输出错误信息
+      executeCallback(null, callback); // 返回默认值或执行其他操作
+      return null; // 返回一个默认值
     });
 
   executeCallback(promise, callback);
