@@ -195,26 +195,24 @@ async function select(name: string, sql: string) {
   }
 }
 
-//检查数据库中的表是否存在，如果不存在则创建，如果存在则不做任何操作
-//创建成功或者表已存在返回true，创建失败返回false
+// 检查数据库中的表是否存在，如果不存在则创建，如果存在则不做任何操作
+// 创建成功或者表已存在返回true，创建失败返回false
 export async function checkStore() {
-  const sql = `SELECT key FROM ${storeName} LIMIT 1;;`;
-  const result = await select(name, sql);
-  if (result.length > 0) {
-    return true; // 表已存在
-  } else {
-    const createSql = `CREATE TABLE ${storeName} (key INT PRIMARY KEY, values TEXT);`;
-    try {
-      const createAction = await execute(name, createSql);
-      if (createAction) {
-        return true; // 创建表成功
-      } else {
-        throw new Error('Table creation failed'); // 创建表失败
-      }
-    } catch (err) {
-      console.log(err);
-      return false; // 返回false，表示创建失败
+  // 查询在 sqlite_master 表中是否存在名为 storeName 的表
+  const sql = `SELECT name FROM sqlite_master WHERE type='table' AND name='${storeName}';`;
+  try {
+    const result = await select(name, sql);
+    if (result.length > 0) {
+      return true; // 表已存在
+    } else {
+      // 表不存在，试图创建它
+      const sql = `CREATE TABLE ${storeName} (key INT PRIMARY KEY, values TEXT);`;
+      const createAction = await execute(name, sql);
+      return createAction !== undefined && createAction !== false; // 如果 createAction 非 undefined 且非 false，意味着创建成功
     }
+  } catch (err) {
+    console.error('An error occurred when checking or creating the table:', err);
+    return false; // 发生错误，返回false
   }
 }
 
@@ -284,7 +282,6 @@ export function dropInstance(callback) {
  * @description 设置指定数据
  * @param key 
  * @param value
-
  * @param callback 
  * @returns 
  */
