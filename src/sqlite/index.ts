@@ -54,7 +54,7 @@ async function closeDatabase(name: string) {
         resolve(true);
       },
       fail(e) {
-        reject(new Error('2：Failed to open database: ' + JSON.stringify(e)));
+        reject(new Error('2：Failed to close database: ' + JSON.stringify(e)));
       }
     });
   });
@@ -131,7 +131,7 @@ async function execute(name: string, sql: string, returnResults = false) {
   if (!isOpenDatabase(name)) {
     const openResult = await openDatabase(name);
     if (!openResult) {
-      throw new Error("Failed to open database");
+      throw new Error("Failed to execute statement");
     }
   }
 
@@ -148,7 +148,7 @@ async function execute(name: string, sql: string, returnResults = false) {
         queryResults = executionResult; // 如果需要返回结果，把结果保存到 queryResults
       }
     } else {
-      throw new Error("Failed to execute SQL operation");
+      throw new Error("Failed in transaction SQL operation");
     }
 
   } catch (error) {
@@ -174,7 +174,7 @@ async function select(name: string, sql: string) {
     // 打开数据库
     const openResult = await openDatabase(name);
     if (!openResult) {
-      throw new Error("Failed to open database");
+      throw new Error("Failed to select, because database don't open");
     }
   }
 
@@ -299,7 +299,7 @@ export function setItem(key, value, callback) {
         value = null;
       }
 
-      const sql = `INSERT OR REPLACE INTO ${storeName} (id, name) VALUES ('${key}', '${value}');`;
+      const sql = `INSERT OR REPLACE INTO ${storeName} (key, values) VALUES ('${key}', '${value}');`;
       return execute(name, sql);
     })
     .then(result => {
@@ -331,7 +331,7 @@ export function getItem(key, callback) {
   key = normalizeKey(key);
   let promise = checkStore(name, storeName)
     .then(() => {
-      const sql = `SELECT name FROM ${storeName} WHERE id='${key}';`;
+      const sql = `SELECT key FROM ${storeName} WHERE key ='${key}';`;
       return select(name, sql);
     })
     .then(result => {
@@ -363,7 +363,7 @@ export function removeItem(key, callback) {
   key = normalizeKey(key);
   let promise = checkStore(name, storeName)
     .then(() => {
-      const sql = `DELETE FROM ${storeName} WHERE id='${key}';`;
+      const sql = `DELETE FROM ${storeName} WHERE key ='${key}';`;
       return execute(name, sql);
     })
     .then(result => {
@@ -424,7 +424,7 @@ export function clear(callback) {
 export function key(index, callback) {
   let promise = checkStore(name, storeName)
     .then(() => {
-      const sql = `SELECT id FROM ${storeName} LIMIT ${index}, 1;`;
+      const sql = `SELECT key FROM ${storeName} LIMIT ${index}, 1;`;
       return execute(name, sql);
     })
     .then(result => {
@@ -454,7 +454,7 @@ export function key(index, callback) {
 export function keys(callback) {
   let promise = checkStore(name, storeName)
     .then(() => {
-      const sql = `SELECT id FROM ${storeName};`;
+      const sql = `SELECT key FROM ${storeName};`;
       return execute(name, sql);
     })
     .then(result => {
@@ -484,7 +484,7 @@ export function keys(callback) {
 export function length(callback) {
   let promise = checkStore(name, storeName)
     .then(() => {
-      const sql = `SELECT COUNT(id) AS count FROM ${storeName};`;
+      const sql = `SELECT COUNT(key) AS count FROM ${storeName};`;
       return select(name, sql);
     })
     .then(result => {
@@ -516,7 +516,7 @@ export async function iterate(callback) {
   
   var promise = self.ready().then(async function() {
     await checkStore(name, storeName);
-    const sql = `SELECT id, name FROM ${storeName};`;
+    const sql = `SELECT key, values FROM ${storeName};`;
     const result = await select(name, sql);
 
     var iterationNumber = 1;
