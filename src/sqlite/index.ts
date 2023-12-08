@@ -22,7 +22,7 @@ async function openDatabase(name: string): Promise<boolean> {
         resolve(true);
       },
       fail(e) {
-        reject(new Error('Failed to open database: ' + JSON.stringify(e)));
+        reject(new Error('1：Failed to open database: ' + JSON.stringify(e)));
       }
     });
   });
@@ -47,7 +47,7 @@ async function closeDatabase(name: string) {
         resolve(true);
       },
       fail(e) {
-        reject(new Error('Failed to open database: ' + JSON.stringify(e)));
+        reject(new Error('2：Failed to open database: ' + JSON.stringify(e)));
       }
     });
   });
@@ -65,7 +65,7 @@ async function transaction(name: string, operation: operation) {
         resolve(true);
       },
       fail(e) {
-        reject(new Error('Failed to open database: ' + JSON.stringify(e)));
+        reject(new Error('3：Failed to open database: ' + JSON.stringify(e)));
       }
     });
   });
@@ -81,7 +81,7 @@ async function executeSql(name: string, sql: string): Promise<boolean> {
         resolve(true);
       },
       fail(e) {
-        reject(new Error('Failed to open database: ' + JSON.stringify(e)));
+        reject(new Error('4：Failed to open database: ' + JSON.stringify(e)));
       }
     });
   });
@@ -97,7 +97,7 @@ async function selectSql(name: string, sql: string): Promise<boolean> {
         resolve(e);
       },
       fail(e) {
-        reject(new Error('Failed to open database: ' + JSON.stringify(e)));
+        reject(new Error('5：Failed to open database: ' + JSON.stringify(e)));
       }
     });
   });
