@@ -245,6 +245,9 @@ export async function checkStore(name: string, storeName: string) {
 export function _initStorage(options) {
   name = options.name;
   storeName = options.storeName;
+  console.log(options)
+  console.log(name)
+  console.log(storeName)
   
   const isDatabaseOpen = isOpenDatabase(options.name);
   if (isDatabaseOpen) {
