@@ -334,7 +334,7 @@ export function getItem(key, callback) {
     })
     .then(result => {
       if (result.length > 0) {
-        return result[0].name;
+        return result[0].value;
       } else {
         return null;
       }
@@ -514,8 +514,7 @@ export async function iterate(callback) {
     if (result.length > 0) {
       let value;
       for(let item of result) {
-        value = callback(item.name, item.id, iterationNumber++);
-
+        value = callback(item.key, item.value, iterationNumber++);
         if(value !== void 0) {
           return value;
         }
