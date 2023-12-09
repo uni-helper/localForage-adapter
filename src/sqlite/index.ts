@@ -423,7 +423,7 @@ export function key(index, callback) {
     })
     .then(result => {
       if (result.length > 0) {
-        return result[0].id;
+        return result[0].key;
       } else {
         return null;
       }
