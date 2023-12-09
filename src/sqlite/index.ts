@@ -206,11 +206,13 @@ export async function checkStore() {
   try {
     const result = await select(sql);
     if (result.length > 0) {
+      console.log(`Table ${storeName} has created.`)
       return true; // 表已存在
     } else {
       // 表不存在，试图创建它
       const sql = `CREATE TABLE ${storeName} (key PRIMARY KEY, value);`;
       const createAction = await execute(sql);
+      console.log(`Table ${storeName} now created.`)
       return createAction !== undefined && createAction !== false; // 如果 createAction 非 undefined 且非 false，意味着创建成功
     }
   } catch (err) {
@@ -449,7 +451,7 @@ export function keys(callback) {
     })
     .then(result => {
       if (result.length > 0) {
-        return result.map(item => item.id);
+        return result.map(item => item.key);
       } else {
         return [];
       }
