@@ -13,11 +13,11 @@ let name, storeName;
 // #ifdef APP-PLUS
 
 //打开数据库
-async function openDatabase(): Promise<boolean> {
+async function openDatabase(_name): Promise<boolean> {
   return new Promise((resolve, reject) => {
     plus.sqlite.openDatabase({
-      name: name,
-      path: '_doc/localForage/' + name + '.db',
+      name: _name,
+      path: '_doc/localForage/' + _name + '.db',
       success(e) {
         resolve(true);
       },
@@ -31,25 +31,25 @@ async function openDatabase(): Promise<boolean> {
 
 
 //数据库是否打开
-const isOpenDatabase = () => {
+const isOpenDatabase = (_name) => {
   try {
     const isOpen = plus.sqlite.isOpenDatabase({
-      name: name,
-      path: '_doc/localForage/' + name + '.db',
+      name: _name,
+      path: '_doc/localForage/' + _name + '.db',
     });
-    console.log('Database ' + name + ' is open:', isOpen);
+    console.log('Database ' + _name + ' is open:', isOpen);
     return isOpen;
   } catch (error) {
-    console.error('Error checking if database ' + name + ' is open:', error);
+    console.error('Error checking if database ' + _name + ' is open:', error);
     return false;
   }
 }
 
 //关闭数据库
-async function closeDatabase() {
+async function closeDatabase(_name) {
   return new Promise((resolve, reject) => {
     plus.sqlite.closeDatabase({
-      name: name,
+      name: _name,
       success(e) {
         resolve(true);
       },
@@ -63,10 +63,10 @@ async function closeDatabase() {
 //执行事务
 //operation ，类型为string，并且只有三个可选值：begin、commit、rollback
 type operation = 'begin' | 'commit' | 'rollback';
-async function transaction(operation: operation) {
+async function transaction(operation: operation,_name) {
   return new Promise((resolve, reject) => {
     plus.sqlite.transaction({
-      name: name,
+      name: _name,
       operation: operation,
       success(e) {
         resolve(true);
@@ -79,10 +79,10 @@ async function transaction(operation: operation) {
 }
 
 //执行sql语句
-async function executeSql(sql: string): Promise<boolean> {
+async function executeSql(sql: string,_name): Promise<boolean> {
   return new Promise((resolve, reject) => {
     plus.sqlite.executeSql({
-      name: name,
+      name: _name,
       sql: sql,
       success(e) {
         resolve(true);
@@ -95,10 +95,10 @@ async function executeSql(sql: string): Promise<boolean> {
 }
 
 //执行查询的sql语句
-async function selectSql(sql: string): Promise<boolean> {
+async function selectSql(sql: string,_name): Promise<boolean> {
   return new Promise((resolve, reject) => {
     plus.sqlite.selectSql({
-      name: name,
+      name: _name,
       sql: sql,
       success(e) {
         resolve(e);
@@ -123,14 +123,14 @@ interface counter {
   //每一个属性为string类型的属性都是一个数据库的名称，属性的值为一个数字，表示该数据库有多少个操作在执行，默认为0
   [key: string]: number;
 }
-async function execute(sql: string, returnResults = false) {
+async function execute(sql: string,_name, returnResults = false) {
   let counter = {};
-  counter[name]++;
+  counter[_name]++;
   let result = false;
   let queryResults;
 
-  if (!isOpenDatabase()) {
-    const openResult = await openDatabase();
+  if (!isOpenDatabase(_name)) {
+    const openResult = await openDatabase(_name);
     if (!openResult) {
       throw new Error("Failed to execute statement");
     }
@@ -138,11 +138,11 @@ async function execute(sql: string, returnResults = false) {
 
   // 开始事务
   try {
-    await transaction('begin');
-    const executionResult = await executeSql(sql);
+    await transaction('begin',_name);
+    const executionResult = await executeSql(sql,_name);
     
     if (executionResult) {
-      await transaction('commit');
+      await transaction('commit',_name);
       result = true;
 
       if (returnResults) {
@@ -153,39 +153,39 @@ async function execute(sql: string, returnResults = false) {
     }
 
   } catch (error) {
-    await transaction('rollback');
+    await transaction('rollback',_name);
     throw error;
   }
 
-  counter[name]--;
+  counter[_name]--;
 
-  if (counter[name] === 0) {
-    await closeDatabase();
+  if (counter[_name] === 0) {
+    await closeDatabase(_name);
   }
 
   return returnResults ? queryResults : result; // 根据参数返回相应的值
 }
 
 //往某数据库中执行查询的sql语句的综合方法，包括打开数据库、执行sql语句、关闭数据库（其中关闭数据库要判断是否还有其他操作在执行）
-async function select(sql: string) {
+async function select(sql: string,_name) {
   let counter = {};
-  counter[name]++;
+  counter[_name]++;
   let result: any = null;
-  if (!isOpenDatabase()) {
+  if (!isOpenDatabase(_name)) {
     // 打开数据库
-    const openResult = await openDatabase();
+    const openResult = await openDatabase(_name);
     if (!openResult) {
       throw new Error("Failed to select, because database don't open");
     }
   }
 
   // 执行查询操作
-  result = await selectSql(sql);
+  result = await selectSql(sql,_name);
 
-  counter[name]--;
-  if (counter[name] === 0) {
+  counter[_name]--;
+  if (counter[_name] === 0) {
     // 如果没有其它正在执行的操作，关闭数据库
-    await closeDatabase();
+    await closeDatabase(_name);
   }
 
   if (result !== null) {
@@ -198,26 +198,26 @@ async function select(sql: string) {
 
 // 检查数据库中的表是否存在，如果不存在则创建，如果存在则不做任何操作
 // 创建成功或者表已存在返回true，创建失败返回false
-export async function checkStore() {
-  console.log(name)
-  console.log(storeName)
+export async function checkStore(_name,_storeName) {
+  console.log(_name)
+  console.log(_storeName)
   // 查询在 sqlite_master 表中是否存在名为 storeName 的表
-  const sql = `SELECT name FROM sqlite_master WHERE type='table' AND name='${storeName}';`;
+  const sql = `SELECT name FROM sqlite_master WHERE type='table' AND name='${_storeName}';`;
   try {
-    const result = await select(sql);
+    const result = await select(sql,_name);
     if (result.length > 0) {
-      console.log(`Table ${storeName} has created.`)
+      console.log(`Table ${_storeName} has created.`)
       return true; // 表已存在
     } else {
       // 表不存在，试图创建它
-      const sql = `CREATE TABLE ${storeName} (key PRIMARY KEY, value);`;
-      const createAction = await execute(sql);
-      console.log(`Table ${storeName} now created.`)
+      const sql = `CREATE TABLE ${_storeName} (key PRIMARY KEY, value);`;
+      const createAction = await execute(sql,_name);
+      console.log(`Table ${_storeName} now created.`)
       return createAction !== undefined && createAction !== false; // 如果 createAction 非 undefined 且非 false，意味着创建成功
     }
   } catch (err) {
-    console.log(name)
-    console.log(storeName)
+    console.log(_name)
+    console.log(_storeName)
     console.error('An error occurred when checking or creating the table:', err);
     return false; // 发生错误，返回false
   }
@@ -253,12 +253,12 @@ export function _initStorage(options) {
   console.log(name)
   console.log(storeName)
   
-  const isDatabaseOpen = isOpenDatabase();
+  const isDatabaseOpen = isOpenDatabase(name);
   if (isDatabaseOpen) {
     executeCallback(Promise.resolve(true));
     return Promise.resolve(true);
   } else {
-    const promise = openDatabase()
+    const promise = openDatabase(name)
       .then(() => {
         executeCallback(Promise.resolve(true));
         return true;
@@ -277,9 +277,9 @@ export function _initStorage(options) {
  * @param {Function} callback 
  * @returns {Promise} 
  */
-export function dropInstance(callback) {
+export function dropInstance(callback,name) {
   const sql = `DROP DATABASE IF EXISTS ${name};`;
-  const promise = execute(sql);
+  const promise = execute(sql,name);
 
   executeCallback(promise, callback);
   return promise;
@@ -294,13 +294,13 @@ export function dropInstance(callback) {
  */
 export function setItem(key, value, callback) {
   key = normalizeKey(key);
-  let promise = checkStore()
+  let promise = checkStore(name,storeName)
     .then(() => {
       if (value === undefined) {
         value = null;
       }
       const sql = `INSERT OR REPLACE INTO ${storeName} (key, value) VALUES ('${key}', '${value}');`;
-      return execute(sql);
+      return execute(sql,name);
     })
     .then(result => {
       if (result) {
@@ -327,10 +327,10 @@ export function setItem(key, value, callback) {
  */
 export function getItem(key, callback) {
   key = normalizeKey(key);
-  let promise = checkStore()
+  let promise = checkStore(name,storeName)
     .then(() => {
       const sql = `SELECT key FROM ${storeName} WHERE key ='${key}';`;
-      return select(sql);
+      return select(sql,name);
     })
     .then(result => {
       if (result.length > 0) {
@@ -352,16 +352,15 @@ export function getItem(key, callback) {
 /**
  * @description 删除指定数据
  * @param key 
-
  * @param callback 
  * @returns 
  */
 export function removeItem(key, callback) {
   key = normalizeKey(key);
-  let promise = checkStore()
+  let promise = checkStore(name,storeName)
     .then(() => {
       const sql = `DELETE FROM ${storeName} WHERE key ='${key}';`;
-      return execute(sql);
+      return execute(sql,name);
     })
     .then(result => {
       if (result) {
@@ -387,10 +386,10 @@ export function removeItem(key, callback) {
  * @returns 
  */
 export function clear(callback) {
-  let promise = checkStore()
+  let promise = checkStore(name,storeName)
     .then(() => {
       const sql = `DELETE FROM ${storeName};`;
-      return execute(sql);
+      return execute(sql,name);
     })
     .then(result => {
       if (result) {
@@ -416,10 +415,10 @@ export function clear(callback) {
  * @returns 
  */
 export function key(index, callback) {
-  let promise = checkStore()
+  let promise = checkStore(name,storeName)
     .then(() => {
       const sql = `SELECT key FROM ${storeName} LIMIT ${index}, 1;`;
-      return execute(sql);
+      return execute(sql,name);
     })
     .then(result => {
       if (result.length > 0) {
@@ -444,10 +443,10 @@ export function key(index, callback) {
  * @returns 
  */
 export function keys(callback) {
-  let promise = checkStore()
+  let promise = checkStore(name,storeName)
     .then(() => {
       const sql = `SELECT key FROM ${storeName};`;
-      return execute(sql);
+      return execute(sql,name);
     })
     .then(result => {
       if (result.length > 0) {
@@ -472,10 +471,10 @@ export function keys(callback) {
  * @returns
  */
 export function length(callback) {
-  let promise = checkStore()
+  let promise = checkStore(name,storeName)
     .then(() => {
       const sql = `SELECT COUNT(key) AS count FROM ${storeName};`;
-      return select(sql);
+      return select(sql,name);
     })
     .then(result => {
       if (result.length > 0) {
@@ -505,9 +504,9 @@ export async function iterate(callback) {
   var self = this;
   
   var promise = self.ready().then(async function() {
-    await checkStore();
+    await checkStore(name,storeName);
     const sql = `SELECT key, value FROM ${storeName};`;
-    const result = await select(sql);
+    const result = await select(sql,name);
 
     var iterationNumber = 1;
 
