@@ -63,7 +63,7 @@ async function closeDatabase(_name) {
 //执行事务
 //operation ，类型为string，并且只有三个可选值：begin、commit、rollback
 type operation = 'begin' | 'commit' | 'rollback';
-async function transaction(operation: operation,_name) {
+async function transaction(operation: operation, _name: any) {
   return new Promise((resolve, reject) => {
     plus.sqlite.transaction({
       name: _name,
@@ -79,7 +79,7 @@ async function transaction(operation: operation,_name) {
 }
 
 //执行sql语句
-async function executeSql(sql: string,_name): Promise<boolean> {
+async function executeSql(sql: string, _name: any): Promise<boolean> {
   return new Promise((resolve, reject) => {
     plus.sqlite.executeSql({
       name: _name,
@@ -95,7 +95,7 @@ async function executeSql(sql: string,_name): Promise<boolean> {
 }
 
 //执行查询的sql语句
-async function selectSql(sql: string,_name): Promise<boolean> {
+async function selectSql(sql: string, _name: any): Promise<boolean> {
   return new Promise((resolve, reject) => {
     plus.sqlite.selectSql({
       name: _name,
@@ -118,14 +118,17 @@ async function selectSql(sql: string,_name): Promise<boolean> {
  **/
 
 //往某数据库中执行sql语句的综合方法，包括打开数据库、执行sql语句、关闭数据库（其中关闭数据库要判断是否还有其他操作在执行）
-let counter: counter;
-interface counter {
-  //每一个属性为string类型的属性都是一个数据库的名称，属性的值为一个数字，表示该数据库有多少个操作在执行，默认为0
+interface Counter {
   [key: string]: number;
 }
-async function execute(sql: string,_name, returnResults = false) {
-  let counter = {};
-  counter[_name]++;
+
+const counter: Counter = {};
+async function execute(sql: string, _name: any, returnResults = false) {
+  if (!counter[_name]) {
+    counter[_name] = 1;
+  } else {
+    counter[_name]++;
+  }
   let result = false;
   let queryResults;
 
@@ -167,9 +170,12 @@ async function execute(sql: string,_name, returnResults = false) {
 }
 
 //往某数据库中执行查询的sql语句的综合方法，包括打开数据库、执行sql语句、关闭数据库（其中关闭数据库要判断是否还有其他操作在执行）
-async function select(sql: string,_name) {
-  let counter = {};
-  counter[_name]++;
+async function select(sql: string, _name: any) {
+  if (!counter[_name]) {
+    counter[_name] = 1;
+  } else {
+    counter[_name]++;
+  }
   let result: any = null;
   if (!isOpenDatabase(_name)) {
     // 打开数据库
