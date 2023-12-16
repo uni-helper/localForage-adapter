@@ -125,7 +125,7 @@ interface Counter {
 const counter: Counter = {};
 async function execute(sql: string, _name: any, returnResults = false) {
   if (!counter[_name]) {
-    counter[_name] = 1;
+    counter[_name] = 0;
   } else {
     counter[_name]++;
   }
@@ -172,7 +172,7 @@ async function execute(sql: string, _name: any, returnResults = false) {
 //往某数据库中执行查询的sql语句的综合方法，包括打开数据库、执行sql语句、关闭数据库（其中关闭数据库要判断是否还有其他操作在执行）
 async function select(sql: string, _name: any) {
   if (!counter[_name]) {
-    counter[_name] = 1;
+    counter[_name] = 0;
   } else {
     counter[_name]++;
   }
