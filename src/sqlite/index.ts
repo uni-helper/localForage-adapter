@@ -141,11 +141,11 @@ async function execute(sql: string, _name: any, returnResults = false) {
 
   // 开始事务
   try {
-    await transaction('begin',_name);
-    const executionResult = await executeSql(sql,_name);
-    
+    await transaction('begin', _name);
+    const executionResult = await executeSql(sql, _name);
+
     if (executionResult) {
-      await transaction('commit',_name);
+      await transaction('commit', _name);
       result = true;
 
       if (returnResults) {
@@ -156,7 +156,7 @@ async function execute(sql: string, _name: any, returnResults = false) {
     }
 
   } catch (error) {
-    await transaction('rollback',_name);
+    await transaction('rollback', _name);
     throw error;
   }
 
@@ -186,7 +186,7 @@ async function select(sql: string, _name: any) {
   }
 
   // 执行查询操作
-  result = await selectSql(sql,_name);
+  result = await selectSql(sql, _name);
 
   counter[_name]--;
   if (counter[_name] === 0) {
@@ -204,20 +204,20 @@ async function select(sql: string, _name: any) {
 
 // 检查数据库中的表是否存在，如果不存在则创建，如果存在则不做任何操作
 // 创建成功或者表已存在返回true，创建失败返回false
-export async function checkStore(_name,_storeName) {
+export async function checkStore(_name, _storeName) {
   console.log(_name)
   console.log(_storeName)
   // 查询在 sqlite_master 表中是否存在名为 storeName 的表
   const sql = `SELECT name FROM sqlite_master WHERE type='table' AND name='${_storeName}';`;
   try {
-    const result = await select(sql,_name);
+    const result = await select(sql, _name);
     if (result.length > 0) {
       console.log(`Table ${_storeName} has created.`)
       return true; // 表已存在
     } else {
       // 表不存在，试图创建它
       const sql = `CREATE TABLE ${_storeName} (key PRIMARY KEY, value);`;
-      const createAction = await execute(sql,_name);
+      const createAction = await execute(sql, _name);
       console.log(`Table ${_storeName} now created.`)
       return createAction !== undefined && createAction !== false; // 如果 createAction 非 undefined 且非 false，意味着创建成功
     }
@@ -258,7 +258,7 @@ export function _initStorage(options) {
   console.log(options)
   console.log(name)
   console.log(storeName)
-  
+
   const isDatabaseOpen = isOpenDatabase(name);
   if (isDatabaseOpen) {
     executeCallback(Promise.resolve(true));
@@ -273,7 +273,7 @@ export function _initStorage(options) {
         executeCallback(Promise.reject(error));
         return Promise.reject(error);
       });
-  
+
     return promise;
   }
 }
@@ -283,9 +283,9 @@ export function _initStorage(options) {
  * @param {Function} callback 
  * @returns {Promise} 
  */
-export function dropInstance(callback,name) {
+export function dropInstance(callback, name) {
   const sql = `DROP DATABASE IF EXISTS ${name};`;
-  const promise = execute(sql,name);
+  const promise = execute(sql, name);
 
   executeCallback(promise, callback);
   return promise;
@@ -298,31 +298,26 @@ export function dropInstance(callback,name) {
  * @param callback 
  * @returns 
  */
-export function setItem(key, value, callback) {
-  key = normalizeKey(key);
-  let promise = checkStore(name,storeName)
-    .then(() => {
-      if (value === undefined) {
-        value = null;
-      }
-      const sql = `INSERT OR REPLACE INTO ${storeName} (key, value) VALUES ('${key}', '${value}');`;
-      return execute(sql,name);
-    })
-    .then(result => {
-      if (result) {
-        return true;
-      } else {
-        return Promise.reject('Set item failed');
-      }
-    })
-    .catch(error => {
-      console.error("1：An error occurred:", error); // 处理异常并输出错误信息
-      executeCallback(null, callback); // 返回默认值或执行其他操作
-      return null; // 返回一个默认值
-    });
+export async function setItem(key, value, callback) {
+  try {
+    key = normalizeKey(key);
+    await checkStore(name, storeName);
 
-  executeCallback(promise, callback);
-  return promise;
+    if (value === undefined) {
+      value = null;
+    }
+
+    const sql = `INSERT OR REPLACE INTO ${storeName} (key, value) VALUES('${key}', '${value}');`;
+    const result = await execute(sql, name);
+
+    executeCallback(result ? true : Promise.reject('Set item failed'), callback);
+
+    return result ? true : Promise.reject('Set item failed');
+  } catch (error) {
+    console.error("1：An error occurred:", error);
+    executeCallback(null, callback);
+    throw error;
+  }
 }
 
 /**
@@ -331,28 +326,22 @@ export function setItem(key, value, callback) {
  * @param callback 
  * @returns 
  */
-export function getItem(key, callback) {
-  key = normalizeKey(key);
-  let promise = checkStore(name,storeName)
-    .then(() => {
-      const sql = `SELECT key FROM ${storeName} WHERE key ='${key}';`;
-      return select(sql,name);
-    })
-    .then(result => {
-      if (result.length > 0) {
-        return result[0].value;
-      } else {
-        return null;
-      }
-    })
-    .catch(error => {
-      console.error("2：An error occurred:", error); // 处理异常并输出错误信息
-      executeCallback(null, callback); // 返回默认值或执行其他操作
-      return null; // 返回一个默认值
-    });
+export async function getItem(key, callback) {
+  try {
+    key = normalizeKey(key);
+    await checkStore(name, storeName);
 
-  executeCallback(promise, callback);
-  return promise;
+    const sql = `SELECT value FROM ${storeName} WHERE key='${key}';`;
+    const result = await select(sql, name);
+
+    executeCallback(result.length > 0 ? result[0].value : null, callback);
+
+    return result.length > 0 ? result[0].value : null;
+  } catch (error) {
+    console.error("2：An error occurred:", error);
+    executeCallback(null, callback);
+    throw error;
+  }
 }
 
 /**
@@ -361,29 +350,23 @@ export function getItem(key, callback) {
  * @param callback 
  * @returns 
  */
-export function removeItem(key, callback) {
-  key = normalizeKey(key);
-  let promise = checkStore(name,storeName)
-    .then(() => {
-      const sql = `DELETE FROM ${storeName} WHERE key ='${key}';`;
-      return execute(sql,name);
-    })
-    .then(result => {
-      if (result) {
-        return true;
-      } else {
-        return false;
-      }
-    })
-    .catch(error => {
-      console.error("3：An error occurred:", error); // 处理异常并输出错误信息
-      executeCallback(null, callback); // 返回默认值或执行其他操作
-      return null; // 返回一个默认值
-    });
+export async function removeItem(key, callback) {
+  try {
+    key = normalizeKey(key);
+    await checkStore(name, storeName);
 
-  executeCallback(promise, callback);
-  return promise;
+    const sql = `DELETE FROM ${storeName} WHERE key ='${key}';`;
+    const result = await execute(sql, name);
+
+    executeCallback(result ? true : false, callback);
+    return result ? true : false;
+  } catch (error) {
+    console.error("3：An error occurred:", error);
+    executeCallback(null, callback);
+    throw error;
+  }
 }
+
 
 /**
  * @description 清空某个表的全部数据
@@ -391,27 +374,20 @@ export function removeItem(key, callback) {
  * @param callback 
  * @returns 
  */
-export function clear(callback) {
-  let promise = checkStore(name,storeName)
-    .then(() => {
-      const sql = `DELETE FROM ${storeName};`;
-      return execute(sql,name);
-    })
-    .then(result => {
-      if (result) {
-        return true;
-      } else {
-        return false;
-      }
-    })
-    .catch(error => {
-      console.error("4：An error occurred:", error); // 处理异常并输出错误信息
-      executeCallback(null, callback); // 返回默认值或执行其他操作
-      return null; // 返回一个默认值
-    });
+export async function clear(callback) {
+  try {
+    await checkStore(name, storeName);
 
-  executeCallback(promise, callback);
-  return promise;
+    const sql = `DELETE FROM ${storeName};`;
+    const result = await execute(sql, name);
+
+    executeCallback(result ? true : false, callback);
+    return result ? true : false;
+  } catch (error) {
+    console.error("4：An error occurred:", error);
+    executeCallback(null, callback);
+    throw error;
+  }
 }
 
 /**
@@ -420,27 +396,20 @@ export function clear(callback) {
  * @param callback 
  * @returns 
  */
-export function key(index, callback) {
-  let promise = checkStore(name,storeName)
-    .then(() => {
-      const sql = `SELECT key FROM ${storeName} LIMIT ${index}, 1;`;
-      return execute(sql,name);
-    })
-    .then(result => {
-      if (result.length > 0) {
-        return result[0].key;
-      } else {
-        return null;
-      }
-    })
-    .catch(error => {
-      console.error("5：An error occurred:", error); // 处理异常并输出错误信息
-      executeCallback(null, callback); // 返回默认值或执行其他操作
-      return null; // 返回一个默认值
-    });
+export async function key(index, callback) {
+  try {
+    await checkStore(name, storeName);
 
-  executeCallback(promise, callback);
-  return promise;
+    const sql = `SELECT key FROM ${storeName} LIMIT ${index}, 1;`;
+    const result = await select(sql, name);
+
+    executeCallback(result.length > 0 ? result[0].key : null, callback);
+    return result.length > 0 ? result[0].key : null;
+  } catch (error) {
+    console.error("5：An error occurred:", error);
+    executeCallback(null, callback);
+    throw error;
+  }
 }
 
 /**
@@ -448,27 +417,20 @@ export function key(index, callback) {
  * @param callback 
  * @returns 
  */
-export function keys(callback) {
-  let promise = checkStore(name,storeName)
-    .then(() => {
-      const sql = `SELECT key FROM ${storeName};`;
-      return execute(sql,name);
-    })
-    .then(result => {
-      if (result.length > 0) {
-        return result.map(item => item.key);
-      } else {
-        return [];
-      }
-    })
-    .catch(error => {
-      console.error("6：An error occurred:", error); // 处理异常并输出错误信息
-      executeCallback(null, callback); // 返回默认值或执行其他操作
-      return null; // 返回一个默认值
-    });
+export async function keys(callback) {
+  try {
+    await checkStore(name, storeName);
 
-  executeCallback(promise, callback);
-  return promise;
+    const sql = `SELECT key FROM ${storeName};`;
+    const result = await select(sql, name);
+
+    executeCallback(result.length > 0 ? result.map(item => item.key) : [], callback);
+    return result.length > 0 ? result.map(item => item.key) : [];
+  } catch (error) {
+    console.error("6：An error occurred:", error);
+    executeCallback(null, callback);
+    throw error;
+  }
 }
 
 /**
@@ -476,27 +438,20 @@ export function keys(callback) {
  * @param callback
  * @returns
  */
-export function length(callback) {
-  let promise = checkStore(name,storeName)
-    .then(() => {
-      const sql = `SELECT COUNT(key) AS count FROM ${storeName};`;
-      return select(sql,name);
-    })
-    .then(result => {
-      if (result.length > 0) {
-        return result[0].count;
-      } else {
-        return 0;
-      }
-    })
-    .catch(error => {
-      console.error("7：An error occurred:", error); // 处理异常并输出错误信息
-      executeCallback(null, callback); // 返回默认值或执行其他操作
-      return null; // 返回一个默认值
-    });
+export async function length(callback) {
+  try {
+    await checkStore(name, storeName);
 
-  executeCallback(promise, callback);
-  return promise;
+    const sql = `SELECT COUNT(key) AS count FROM ${storeName};`;
+    const result = await select(sql, name);
+
+    executeCallback(result.length > 0 ? result[0].count : 0, callback);
+    return result.length > 0 ? result[0].count : 0;
+  } catch (error) {
+    console.error("7：An error occurred:", error);
+    executeCallback(null, callback);
+    throw error;
+  }
 }
 
 /**
@@ -507,31 +462,29 @@ export function length(callback) {
  * @returns 
  */
 export async function iterate(callback) {
-  var self = this;
-  
-  var promise = self.ready().then(async function() {
-    await checkStore(name,storeName);
+  try {
+    await checkStore(name, storeName);
     const sql = `SELECT key, value FROM ${storeName};`;
-    const result = await select(sql,name);
+    const result = await select(sql, name);
 
-    var iterationNumber = 1;
+    let iterationNumber = 1;
+    let returnValue;
 
-    if (result.length > 0) {
-      let value;
-      for(let item of result) {
-        value = callback(item.key, item.value, iterationNumber++);
-        if(value !== void 0) {
-          return value;
-        }
+    for (let item of result) {
+      returnValue = callback(item.key, item.value, iterationNumber++);
+      if (returnValue !== undefined) {
+        executeCallback(returnValue, callback);
+        return returnValue;
       }
-      return result;
-    } else {
-      return [];
     }
-  });
 
-  executeCallback(promise, callback);
-  return promise;
+    executeCallback(result.length > 0 ? result : [], callback);
+    return result.length > 0 ? result : [];
+  } catch (error) {
+    console.error("Error during iteration:", error);
+    executeCallback(null, callback);
+    throw error;
+  }
 }
 
 /**
