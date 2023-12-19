@@ -13,7 +13,7 @@ let name, storeName;
 // #ifdef APP-PLUS
 
 //打开数据库
-async function openDatabase(_name): Promise<boolean> {
+function openDatabase(_name): Promise<boolean> {
   return new Promise((resolve, reject) => {
     plus.sqlite.openDatabase({
       name: _name,
@@ -46,7 +46,7 @@ const isOpenDatabase = (_name) => {
 }
 
 //关闭数据库
-async function closeDatabase(_name) {
+function closeDatabase(_name) {
   return new Promise((resolve, reject) => {
     plus.sqlite.closeDatabase({
       name: _name,
@@ -63,7 +63,7 @@ async function closeDatabase(_name) {
 //执行事务
 //operation ，类型为string，并且只有三个可选值：begin、commit、rollback
 type operation = 'begin' | 'commit' | 'rollback';
-async function transaction(operation: operation, _name: any) {
+function transaction(operation: operation, _name: any) {
   return new Promise((resolve, reject) => {
     plus.sqlite.transaction({
       name: _name,
@@ -79,7 +79,7 @@ async function transaction(operation: operation, _name: any) {
 }
 
 //执行sql语句
-async function executeSql(sql: string, _name: any): Promise<boolean> {
+function executeSql(sql: string, _name: any): Promise<boolean> {
   return new Promise((resolve, reject) => {
     plus.sqlite.executeSql({
       name: _name,
@@ -95,7 +95,7 @@ async function executeSql(sql: string, _name: any): Promise<boolean> {
 }
 
 //执行查询的sql语句
-async function selectSql(sql: string, _name: any): Promise<boolean> {
+function selectSql(sql: string, _name: any): Promise<boolean> {
   return new Promise((resolve, reject) => {
     plus.sqlite.selectSql({
       name: _name,
@@ -299,16 +299,18 @@ export function dropInstance(callback, name) {
  * @returns 
  */
 export async function setItem(key, value, callback) {
+  const _name = name
+  const _storeName = storeName
   try {
     key = normalizeKey(key);
-    await checkStore(name, storeName);
+    await checkStore(_name, _storeName);
 
     if (value === undefined) {
       value = null;
     }
 
-    const sql = `INSERT OR REPLACE INTO ${storeName} (key, value) VALUES('${key}', '${value}');`;
-    const result = await execute(sql, name);
+    const sql = `INSERT OR REPLACE INTO ${_storeName} (key, value) VALUES('${key}', '${value}');`;
+    const result = await execute(sql, _name);
 
     executeCallback(result ? true : Promise.reject('Set item failed'), callback);
 
@@ -327,12 +329,14 @@ export async function setItem(key, value, callback) {
  * @returns 
  */
 export async function getItem(key, callback) {
+  const _name = name
+  const _storeName = storeName
   try {
     key = normalizeKey(key);
-    await checkStore(name, storeName);
+    await checkStore(_name, _storeName);
 
-    const sql = `SELECT value FROM ${storeName} WHERE key='${key}';`;
-    const result = await select(sql, name);
+    const sql = `SELECT value FROM ${_storeName} WHERE key='${key}';`;
+    const result = await select(sql, _name);
 
     executeCallback(result.length > 0 ? result[0].value : null, callback);
 
@@ -351,12 +355,14 @@ export async function getItem(key, callback) {
  * @returns 
  */
 export async function removeItem(key, callback) {
+  const _name = name
+  const _storeName = storeName
   try {
     key = normalizeKey(key);
-    await checkStore(name, storeName);
+    await checkStore(_name, _storeName);
 
-    const sql = `DELETE FROM ${storeName} WHERE key ='${key}';`;
-    const result = await execute(sql, name);
+    const sql = `DELETE FROM ${_storeName} WHERE key ='${key}';`;
+    const result = await execute(sql, _name);
 
     executeCallback(result ? true : false, callback);
     return result ? true : false;
@@ -375,11 +381,13 @@ export async function removeItem(key, callback) {
  * @returns 
  */
 export async function clear(callback) {
+  const _name = name
+  const _storeName = storeName
   try {
-    await checkStore(name, storeName);
+    await checkStore(_name, -storeName);
 
-    const sql = `DELETE FROM ${storeName};`;
-    const result = await execute(sql, name);
+    const sql = `DELETE FROM ${-storeName};`;
+    const result = await execute(sql, -name);
 
     executeCallback(result ? true : false, callback);
     return result ? true : false;
@@ -397,10 +405,12 @@ export async function clear(callback) {
  * @returns 
  */
 export async function key(index, callback) {
+  const _name = name
+  const _storeName = storeName
   try {
-    await checkStore(name, storeName);
+    await checkStore(_name, _storeName);
 
-    const sql = `SELECT key FROM ${storeName} LIMIT ${index}, 1;`;
+    const sql = `SELECT key FROM ${_storeName} LIMIT ${index}, 1;`;
     const result = await select(sql, name);
 
     executeCallback(result.length > 0 ? result[0].key : null, callback);
@@ -418,11 +428,13 @@ export async function key(index, callback) {
  * @returns 
  */
 export async function keys(callback) {
+  const _name = name
+  const _storeName = storeName
   try {
-    await checkStore(name, storeName);
+    await checkStore(_name, _storeName);
 
-    const sql = `SELECT key FROM ${storeName};`;
-    const result = await select(sql, name);
+    const sql = `SELECT key FROM ${_storeName};`;
+    const result = await select(sql, _name);
 
     executeCallback(result.length > 0 ? result.map(item => item.key) : [], callback);
     return result.length > 0 ? result.map(item => item.key) : [];
@@ -439,11 +451,13 @@ export async function keys(callback) {
  * @returns
  */
 export async function length(callback) {
+  const _name = name
+  const _storeName = storeName
   try {
-    await checkStore(name, storeName);
+    await checkStore(_name, _storeName);
 
-    const sql = `SELECT COUNT(key) AS count FROM ${storeName};`;
-    const result = await select(sql, name);
+    const sql = `SELECT COUNT(key) AS count FROM ${_storeName};`;
+    const result = await select(sql, _name);
 
     executeCallback(result.length > 0 ? result[0].count : 0, callback);
     return result.length > 0 ? result[0].count : 0;
@@ -462,10 +476,12 @@ export async function length(callback) {
  * @returns 
  */
 export async function iterate(callback) {
+  const _name = name
+  const _storeName = storeName
   try {
-    await checkStore(name, storeName);
-    const sql = `SELECT key, value FROM ${storeName};`;
-    const result = await select(sql, name);
+    await checkStore(_name, _storeName);
+    const sql = `SELECT key, value FROM ${_storeName};`;
+    const result = await select(sql, _name);
 
     let iterationNumber = 1;
     let returnValue;
