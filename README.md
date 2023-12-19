@@ -2,8 +2,6 @@
 
 [![NPM version](https://img.shields.io/npm/v/@uni-helper/localforage-adapter?color=a1b858&label=)](https://www.npmjs.com/package/@uni-helper/localforage-adapter)
 
-此项目所有主要功能和目标均已完成，但是由于未经过严格测试，所以暂时不建议在生产环境中使用。
-
 ## 安装
 
 ```bash
@@ -16,6 +14,9 @@ yarn add @uni-helper/localforage-adapter
 ```
 
 ## 使用
+
+- uniStorageDriver：使用uni-app内置的storage API，支持所有平台，但是性能较差，不建议在H5端和App端使用，仅建议小程序端使用
+- sqliteDriver：使用基座包提供的SQLite模块，仅支持App端，性能较好，建议在App端使用
 
 ```js
 import { uniStorageDriver, sqliteDriver } from "@uni-helper/localforage-adapter"
