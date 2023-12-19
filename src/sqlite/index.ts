@@ -37,7 +37,7 @@ const isOpenDatabase = (_name) => {
       name: _name,
       path: '_doc/localForage/' + _name + '.db',
     });
-    console.log('Database ' + _name + ' is open:', isOpen);
+    //console.log('Database ' + _name + ' is open:', isOpen);
     return isOpen;
   } catch (error) {
     console.error('Error checking if database ' + _name + ' is open:', error);
@@ -205,25 +205,25 @@ async function select(sql: string, _name: any) {
 // 检查数据库中的表是否存在，如果不存在则创建，如果存在则不做任何操作
 // 创建成功或者表已存在返回true，创建失败返回false
 export async function checkStore(_name, _storeName) {
-  console.log(_name)
-  console.log(_storeName)
+  //console.log(_name)
+  //console.log(_storeName)
   // 查询在 sqlite_master 表中是否存在名为 storeName 的表
   const sql = `SELECT name FROM sqlite_master WHERE type='table' AND name='${_storeName}';`;
   try {
     const result = await select(sql, _name);
     if (result.length > 0) {
-      console.log(`Table ${_storeName} has created.`)
+      //console.log(`Table ${_storeName} has created.`)
       return true; // 表已存在
     } else {
       // 表不存在，试图创建它
       const sql = `CREATE TABLE ${_storeName} (key PRIMARY KEY, value);`;
       const createAction = await execute(sql, _name);
-      console.log(`Table ${_storeName} now created.`)
+      //console.log(`Table ${_storeName} now created.`)
       return createAction !== undefined && createAction !== false; // 如果 createAction 非 undefined 且非 false，意味着创建成功
     }
   } catch (err) {
-    console.log(_name)
-    console.log(_storeName)
+    //console.log(_name)
+    //console.log(_storeName)
     console.error('An error occurred when checking or creating the table:', err);
     return false; // 发生错误，返回false
   }
@@ -255,9 +255,9 @@ export async function checkStore(_name, _storeName) {
 export function _initStorage(options) {
   name = options.name;
   storeName = options.storeName;
-  console.log(options)
-  console.log(name)
-  console.log(storeName)
+  //console.log(options)
+  //console.log(name)
+  //console.log(storeName)
 
   const isDatabaseOpen = isOpenDatabase(name);
   if (isDatabaseOpen) {
