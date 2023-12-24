@@ -80,7 +80,6 @@ function transaction(operation: operation, _name: any) {
 
 //执行sql语句
 function executeSql(sql: string, _name: any): Promise<boolean> {
-  console.log("executeSql._name", _name)
   return new Promise((resolve, reject) => {
     plus.sqlite.executeSql({
       name: _name,
@@ -206,8 +205,6 @@ async function select(sql: string, _name: any) {
 // 检查数据库中的表是否存在，如果不存在则创建，如果存在则不做任何操作
 // 创建成功或者表已存在返回true，创建失败返回false
 export async function checkStore(_name, _storeName) {
-  console.log("checkStore._name", _name)
-  console.log("checkStore._storeName", _storeName)
   // 查询在 sqlite_master 表中是否存在名为 storeName 的表
   const sql = `SELECT name FROM sqlite_master WHERE type='table' AND name='${_storeName}';`;
   try {
@@ -412,12 +409,14 @@ export async function key(index, callback) {
     await checkStore(_name, _storeName);
 
     const sql = `SELECT key FROM ${_storeName} LIMIT ${index}, 1;`;
-    const result = await select(sql, name);
+    const result = await select(sql, _name);
 
-    executeCallback(result.length > 0 ? result[0].key : null, callback);
-    return result.length > 0 ? result[0].key : null;
+    const key = result.length > 0 ? result.map(item => item.key) : [];
+    executeCallback(key, callback);
+
+    return key;
   } catch (error) {
-    console.error("5：An error occurred:", error);
+    console.error("An error occurred:", error);
     executeCallback(null, callback);
     throw error;
   }
@@ -429,20 +428,19 @@ export async function key(index, callback) {
  * @returns 
  */
 export async function keys(callback) {
-  console.log("keys.name:", name, "keys.storeName:", storeName); 
   const _name = name
   const _storeName = storeName
-  console.log("keys._name:", _name, "keys._storeName:", _storeName); 
   try {
     await checkStore(_name, _storeName);
-    console.log("I am working");
     const sql = `SELECT key FROM ${_storeName};`;
     const result = await select(sql, _name);
 
-    executeCallback(result.length > 0 ? result.map(item => item.key) : [], callback);
-    return result.length > 0 ? result.map(item => item.key) : [];
+    const keys = result.length > 0 ? result.map(item => item.key) : [];
+    executeCallback(keys, callback);
+
+    return keys; // Return the keys array outside the callback
   } catch (error) {
-    console.error("6：An error occurred:", error);
+    console.error("An error occurred:", error);
     executeCallback(null, callback);
     throw error;
   }
