@@ -428,11 +428,13 @@ export async function key(index, callback) {
  * @returns 
  */
 export async function keys(callback) {
+  console.log("name:", name, "storeName:", storeName); 
   const _name = name
   const _storeName = storeName
+  console.log("_name:", _name, "_storeName:", _storeName); 
   try {
     await checkStore(_name, _storeName);
-
+    console.log("I am working");
     const sql = `SELECT key FROM ${_storeName};`;
     const result = await select(sql, _name);
 
