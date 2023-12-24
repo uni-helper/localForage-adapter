@@ -3,6 +3,7 @@ import normalizeKey from 'localforage/src/utils/normalizeKey';
 
 declare const plus: any;
 let name, storeName;
+console.log("name:", name, "storeName:", storeName); 
 //使用plus的sqlite重新实现一遍localForage
 
 /**
@@ -384,10 +385,10 @@ export async function clear(callback) {
   const _name = name
   const _storeName = storeName
   try {
-    await checkStore(_name, -storeName);
+    await checkStore(_name, _storeName);
 
-    const sql = `DELETE FROM ${-storeName};`;
-    const result = await execute(sql, -name);
+    const sql = `DELETE FROM ${_storeName};`;
+    const result = await execute(sql, _name);
 
     executeCallback(result ? true : false, callback);
     return result ? true : false;
