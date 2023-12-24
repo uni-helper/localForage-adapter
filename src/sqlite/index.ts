@@ -3,7 +3,6 @@ import normalizeKey from 'localforage/src/utils/normalizeKey';
 
 declare const plus: any;
 let name, storeName;
-console.log("name:", name, "storeName:", storeName); 
 //使用plus的sqlite重新实现一遍localForage
 
 /**
