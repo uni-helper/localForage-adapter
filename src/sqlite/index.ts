@@ -429,9 +429,10 @@ export async function key(index, callback) {
  * @param callback 
  * @returns 
  */
-export async function keys(callback) {
+export async function keys(options,callback) {
   console.log("enter keys")
   console.log("keys.name:", name, "keys.storeName:", storeName); 
+  console.log("keys.name:", options.name, "keys.storeName:", options.storeName); 
   const _name = name
   const _storeName = storeName
   console.log("keys._name:", _name, "keys._storeName:", _storeName); 
