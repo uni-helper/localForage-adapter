@@ -251,13 +251,13 @@ export async function checkStore(_name, _storeName) {
  * @returns 
  */
 export function _initStorage(options) {
-  console.log(options.name);
-  console.log(options.storeName);
+  console.log("1:nameinitStorage:",options.name);
+  console.log("1:storeNameinitStorage:",options.storeName);
   name = options.name;
   storeName = options.storeName;
   //console.log(options)
-  console.log(name);
-  console.log(storeName);
+  console.log("2:nameinitStorage:",name);
+  console.log("2:storeNameinitStorage:",storeName);
 
   const isDatabaseOpen = isOpenDatabase(name);
   if (isDatabaseOpen) {
