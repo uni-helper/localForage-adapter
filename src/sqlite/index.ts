@@ -251,11 +251,13 @@ export async function checkStore(_name, _storeName) {
  * @returns 
  */
 export function _initStorage(options) {
+  console.log(options.name);
+  console.log(options.storeName);
   name = options.name;
   storeName = options.storeName;
   //console.log(options)
-  //console.log(name)
-  //console.log(storeName)
+  console.log(name);
+  console.log(storeName);
 
   const isDatabaseOpen = isOpenDatabase(name);
   if (isDatabaseOpen) {
@@ -428,8 +430,11 @@ export async function key(index, callback) {
  * @returns 
  */
 export async function keys(callback) {
+  console.log("enter keys")
+  console.log("keys.name:", name, "keys.storeName:", storeName); 
   const _name = name
   const _storeName = storeName
+  console.log("keys._name:", _name, "keys._storeName:", _storeName); 
   try {
     await checkStore(_name, _storeName);
     const sql = `SELECT key FROM ${_storeName};`;
