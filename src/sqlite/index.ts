@@ -2,7 +2,23 @@ import executeCallback from "localforage/src/utils/executeCallback";
 import normalizeKey from 'localforage/src/utils/normalizeKey';
 
 declare const plus: any;
+let dbQueue = []; // 创建队列，用于存储还未执行的数据库操作
+let isInitializing = false; // 是否正在初始化数据库
 let name, storeName;
+
+function enqueueOperation(operation) {
+  dbQueue.push(operation);
+  runPendingOperations();
+}
+
+// 执行队列中下一个挂起的操作
+function runPendingOperations() {
+  if (!isInitializing && dbQueue.length > 0) {
+    const nextOperation = dbQueue.shift();
+    nextOperation();
+  }
+}
+
 //使用plus的sqlite重新实现一遍localForage
 
 /**
@@ -250,31 +266,30 @@ export async function checkStore(_name, _storeName) {
  * @param options 
  * @returns 
  */
-export function _initStorage(options) {
-  console.log("1:nameinitStorage:",options.name);
-  console.log("1:storeNameinitStorage:",options.storeName);
+export async function _initStorage(options) {
   name = options.name;
   storeName = options.storeName;
-  //console.log(options)
-  console.log("2:nameinitStorage:",name);
-  console.log("2:storeNameinitStorage:",storeName);
 
-  const isDatabaseOpen = isOpenDatabase(name);
-  if (isDatabaseOpen) {
+  isInitializing = true; // 设置标志，表示正在初始化数据库
+
+  if (isOpenDatabase(name)) {
+    isInitializing = false; // 初始化完成
     executeCallback(Promise.resolve(true));
+    runPendingOperations(); // 运行队列中的下一个挂起操作
     return Promise.resolve(true);
   } else {
-    const promise = openDatabase(name)
-      .then(() => {
-        executeCallback(Promise.resolve(true));
-        return true;
-      })
-      .catch(error => {
-        executeCallback(Promise.reject(error));
-        return Promise.reject(error);
-      });
-
-    return promise;
+    try {
+      await openDatabase(name);
+      isInitializing = false; // 初始化完成
+      executeCallback(Promise.resolve(true));
+      runPendingOperations(); // 运行队列中的下一个挂起操作
+      return true;
+    } catch (error) {
+      isInitializing = false; // 初始化失败
+      executeCallback(Promise.reject(error));
+      runPendingOperations(); // 运行队列中的下一个挂起操作
+      return Promise.reject(error);
+    }
   }
 }
 
@@ -429,27 +444,25 @@ export async function key(index, callback) {
  * @param callback 
  * @returns 
  */
-export async function keys(options,callback) {
-  console.log("enter keys")
-  console.log("keys.name:", name, "keys.storeName:", storeName); 
-  console.log("keys.options.name:", options.name, "keys.options.storeName:", options.storeName); 
-  const _name = name
-  const _storeName = storeName
-  console.log("keys._name:", _name, "keys._storeName:", _storeName); 
-  try {
-    await checkStore(_name, _storeName);
-    const sql = `SELECT key FROM ${_storeName};`;
-    const result = await select(sql, _name);
+export async function keys(callback) {
+  enqueueOperation(async () => {
+    const _name = name;
+    const _storeName = storeName;
+    try {
+      await checkStore(_name, _storeName);
+      const sql = `SELECT key FROM ${_storeName};`;
+      const result = await select(sql, _name);
 
-    const keys = result.length > 0 ? result.map(item => item.key) : [];
-    executeCallback(keys, callback);
+      const keys = result.length > 0 ? result.map(item => item.key) : [];
+      executeCallback(keys, callback);
 
-    return keys; // Return the keys array outside the callback
-  } catch (error) {
-    console.error("An error occurred:", error);
-    executeCallback(null, callback);
-    throw error;
-  }
+      return keys; // Return the keys array outside the callback
+    } catch (error) {
+      console.error("An error occurred:", error);
+      executeCallback(null, callback);
+      throw error;
+    }
+  });
 }
 
 /**
