@@ -2,7 +2,6 @@ import executeCallback from "localforage/src/utils/executeCallback";
 import normalizeKey from 'localforage/src/utils/normalizeKey';
 
 declare const plus: any;
-let dbQueue: (() => void)[] = []; // 创建队列，用于存储还未执行的数据库操作
 let isTaskRunning = false; // 是否正在初始化数据库
 let name, storeName;
 
