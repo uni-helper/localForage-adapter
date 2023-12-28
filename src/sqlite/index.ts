@@ -2,7 +2,7 @@ import executeCallback from "localforage/src/utils/executeCallback";
 import normalizeKey from 'localforage/src/utils/normalizeKey';
 
 declare const plus: any;
-let dbQueue = []; // 创建队列，用于存储还未执行的数据库操作
+let dbQueue: (() => void)[] = []; // 创建队列，用于存储还未执行的数据库操作
 let isInitializing = false; // 是否正在初始化数据库
 let name, storeName;
 
@@ -15,7 +15,9 @@ function enqueueOperation(operation) {
 function runPendingOperations() {
   if (!isInitializing && dbQueue.length > 0) {
     const nextOperation = dbQueue.shift();
-    nextOperation();
+    if (typeof nextOperation === 'function') {
+      nextOperation();
+    }
   }
 }
 
@@ -273,21 +275,21 @@ export async function _initStorage(options) {
   isInitializing = true; // 设置标志，表示正在初始化数据库
 
   if (isOpenDatabase(name)) {
-    isInitializing = false; // 初始化完成
+    isInitializing = false;
     executeCallback(Promise.resolve(true));
-    runPendingOperations(); // 运行队列中的下一个挂起操作
+    runPendingOperations();
     return Promise.resolve(true);
   } else {
     try {
       await openDatabase(name);
       isInitializing = false; // 初始化完成
       executeCallback(Promise.resolve(true));
-      runPendingOperations(); // 运行队列中的下一个挂起操作
+      runPendingOperations();
       return true;
     } catch (error) {
       isInitializing = false; // 初始化失败
       executeCallback(Promise.reject(error));
-      runPendingOperations(); // 运行队列中的下一个挂起操作
+      runPendingOperations();
       return Promise.reject(error);
     }
   }
@@ -456,7 +458,7 @@ export async function keys(callback) {
       const keys = result.length > 0 ? result.map(item => item.key) : [];
       executeCallback(keys, callback);
 
-      return keys; // Return the keys array outside the callback
+      return keys;
     } catch (error) {
       console.error("An error occurred:", error);
       executeCallback(null, callback);
