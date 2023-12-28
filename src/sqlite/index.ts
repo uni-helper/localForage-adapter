@@ -2,8 +2,23 @@ import executeCallback from "localforage/src/utils/executeCallback";
 import normalizeKey from 'localforage/src/utils/normalizeKey';
 
 declare const plus: any;
-let isTaskRunning = false;
+let dbQueue = []; // 创建队列，用于存储还未执行的数据库操作
+let isInitializing = false; // 是否正在初始化数据库
 let name, storeName;
+
+function enqueueOperation(operation) {
+  dbQueue.push(operation);
+  runPendingOperations();
+}
+
+// 执行队列中下一个挂起的操作
+function runPendingOperations() {
+  if (!isInitializing && dbQueue.length > 0) {
+    const nextOperation = dbQueue.shift();
+    nextOperation();
+  }
+}
+
 //使用plus的sqlite重新实现一遍localForage
 
 /**
@@ -12,69 +27,6 @@ let name, storeName;
  **/
 
 // #ifdef APP-PLUS
-
-// 定义 DbTask 接口
-interface DbTask {
-  task: () => Promise<any>;
-  callback: (err: any | null, result?: any) => void;
-}
-
-// 声明 dbTaskQueue 为 DbTask 类型的数组
-const dbTaskQueue: DbTask[] = [];
-
-function createInitTask(options) {
-  return async function() {
-    const { name, storeName } = options;
-    // 首先检查是否已打开数据库的特定实例
-    if (!isOpenDatabase(name)) {
-      await openDatabase(name);
-    }
-    
-    // 检查特定 store 是否已存在并准备就绪
-    // 由于 checkStore 函数已经被修改为使用队列，我们直接传递 callback 给 checkStore
-    await checkStore(name, storeName, function(err) {
-      if (err) {
-        // 错误处理
-        console.error('An error occurred when checking or creating the store:', err);
-      } else {
-        // 如果 store 的检查或创建成功，您可以在这里继续处理或者调用其他队列任务
-        console.log(`Store ${storeName} is ready.`);
-      }
-    });
-  };
-}
-
-// 处理队列中的任务
-function processQueue() {
-  if (isTaskRunning || dbTaskQueue.length === 0) {
-    return; // 如果任务正在运行或队列为空，直接返回
-  }
-
-  isTaskRunning = true; // 设置标记，表示任务正在执行
-  const nextTask = dbTaskQueue.shift();
-
-  // 使用 if 语句进行运行时检查
-  if (!nextTask) {
-    isTaskRunning = false; // 如果没有任务，重置标记
-    return;
-  }
-
-  nextTask.task().then(result => {
-    isTaskRunning = false; // 任务结束，重置标记
-    nextTask.callback(null, result); // 返回成功结果
-    processQueue(); // 继续处理队列中的下一个任务
-  }).catch(err => {
-    isTaskRunning = false; // 任务结束，重置标记
-    nextTask.callback(err); // 返回错误
-    processQueue(); // 继续处理队列中的下一个任务
-  });
-}
-
-// 将任务和其回调函数添加到队列
-function enqueueDbTask(taskFunction, callback) {
-  dbTaskQueue.push({ task: taskFunction, callback }); // 添加任务到队列
-  processQueue(); // 尝试处理队列中的任务
-}
 
 //打开数据库
 function openDatabase(_name): Promise<boolean> {
@@ -143,46 +95,35 @@ function transaction(operation: operation, _name: any) {
 }
 
 //执行sql语句
-
-export function executeSql(sql, params, callback) {
-  const task = async () => {
-    return new Promise((resolve, reject) => {
-      plus.sqlite.executeSql({
-        name: name,
-        sql: sql,
-        args: params || [],
-        success(e) {
-          resolve(e);
-        },
-        fail(e) {
-          reject(new Error('4：Failed to open database: ' + JSON.stringify(e)));
-        }
-      });
+function executeSql(sql: string, _name: any): Promise<boolean> {
+  return new Promise((resolve, reject) => {
+    plus.sqlite.executeSql({
+      name: _name,
+      sql: sql,
+      success(e) {
+        resolve(true);
+      },
+      fail(e) {
+        reject(new Error('4：Failed to open database: ' + JSON.stringify(e)));
+      }
     });
-  };
-
-  enqueueDbTask(task, callback);
+  });
 }
 
 //执行查询的sql语句
-export function selectSql(sql, params, callback) {
-  const task = async () => {
-    return new Promise((resolve, reject) => {
-      plus.sqlite.selectSql({
-        name: name,
-        sql: sql,
-        args: params || [],
-        success(e) {
-          resolve(e);
-        },
-        fail(e) {
-          reject(new Error('5：Failed to open database: ' + JSON.stringify(e)));
-        }
-      });
+function selectSql(sql: string, _name: any): Promise<boolean> {
+  return new Promise((resolve, reject) => {
+    plus.sqlite.selectSql({
+      name: _name,
+      sql: sql,
+      success(e) {
+        resolve(e);
+      },
+      fail(e) {
+        reject(new Error('5：Failed to open database: ' + JSON.stringify(e)));
+      }
     });
-  };
-
-  enqueueDbTask(task, callback);
+  });
 }
 
 // #endif
@@ -198,46 +139,33 @@ interface Counter {
 }
 
 const counter: Counter = {};
-async function execute(sql: string, _name: any, returnResults = false, callback: (err: any, result?: any) => void) {
+async function execute(sql: string, _name: any, returnResults = false) {
   if (!counter[_name]) {
     counter[_name] = 0;
-  } 
-  counter[_name]++;
-
-  let result: any = false;
-  let queryResults: any;
+  } else {
+    counter[_name]++;
+  }
+  let result = false;
+  let queryResults;
 
   if (!isOpenDatabase(_name)) {
-    try {
-      await openDatabase(_name);
-    } catch (error) {
-      executeCallback(error, callback);
-      throw error;
+    const openResult = await openDatabase(_name);
+    if (!openResult) {
+      throw new Error("Failed to execute statement");
     }
   }
 
   // 开始事务
   try {
     await transaction('begin', _name);
-
-    const executeTask = () => new Promise((resolve, reject) => {
-      executeSql(sql, [], (error, sqlResult) => {
-        if (error) {
-          reject(error);
-        } else {
-          resolve(sqlResult);
-        }
-      });
-    });
-
-    const executionResult = await executeTask();
+    const executionResult = await executeSql(sql, _name);
 
     if (executionResult) {
       await transaction('commit', _name);
       result = true;
 
       if (returnResults) {
-        queryResults = executionResult; // If results should be returned, save them to queryResults.
+        queryResults = executionResult; // 如果需要返回结果，把结果保存到 queryResults
       }
     } else {
       throw new Error("Failed in transaction SQL operation");
@@ -245,22 +173,20 @@ async function execute(sql: string, _name: any, returnResults = false, callback:
 
   } catch (error) {
     await transaction('rollback', _name);
-    executeCallback(error, callback);
     throw error;
-  } finally {
-    counter[_name]--;
-    if (counter[_name] === 0) {
-      await closeDatabase(_name);
-    }
   }
 
-  const finalResult = returnResults ? queryResults : result;
-  executeCallback(null, finalResult, callback); // Execute the callback with the result.
-  return finalResult;
+  counter[_name]--;
+
+  if (counter[_name] === 0) {
+    await closeDatabase(_name);
+  }
+
+  return returnResults ? queryResults : result; // 根据参数返回相应的值
 }
 
 //往某数据库中执行查询的sql语句的综合方法，包括打开数据库、执行sql语句、关闭数据库（其中关闭数据库要判断是否还有其他操作在执行）
-async function select(sql: string, _name: any, callback: (err: any, result?: any) => void) {
+async function select(sql: string, _name: any) {
   if (!counter[_name]) {
     counter[_name] = 0;
   } else {
@@ -271,77 +197,52 @@ async function select(sql: string, _name: any, callback: (err: any, result?: any
     // 打开数据库
     const openResult = await openDatabase(_name);
     if (!openResult) {
-      const error = new Error("Failed to select, because database don't open");
-      executeCallback(error, callback);
-      throw error;
+      throw new Error("Failed to select, because database don't open");
     }
   }
 
   // 执行查询操作
-  const selectTask = () => new Promise((resolve, reject) => {
-    selectSql(sql, [], (error, results) => {
-      if (error) {
-        reject(error);
-      } else {
-        resolve(results);
-      }
-    });
-  });
+  result = await selectSql(sql, _name);
 
-  enqueueDbTask(selectTask, (err, res) => {
-    // Update the counter
-    counter[_name]--;
-    // If this was the last operation, close the database
-    if (counter[_name] === 0) {
-      closeDatabase(_name);
-    }
-    // Handle the callback with result or error based on the task outcome
-    if (err) {
-      console.error("Failed to execute select operation:", err);
-      executeCallback(null, callback);
-      throw err;
-    } else {
-      result = res;
-      executeCallback(result, callback);
-    }
-  });
+  counter[_name]--;
+  if (counter[_name] === 0) {
+    // 如果没有其它正在执行的操作，关闭数据库
+    await closeDatabase(_name);
+  }
 
-  // We return the result directly, since errors are handled by throwing
-  return result;
-}
-// 检查数据库中的表是否存在，如果不存在则创建，如果存在则不做任何操作
-export async function checkStore(_name, _storeName, callback) {
-  const task = async () => {
-    // Check if the table exists by querying the SQLite master table
-    const sqlCheckTableExists = `SELECT name FROM sqlite_master WHERE type='table' AND name='${_storeName}';`;
-    const result = await new Promise((resolve, reject) => {
-      selectSql(sqlCheckTableExists, [], (error, results) => { // Pass an empty array for params
-        if (error) reject(error);
-        if (results && results.length > 0) {
-          resolve(true); // The table exists
-        } else {
-          // If the table does not exist, create it
-          const sqlCreateTable = `CREATE TABLE IF NOT EXISTS ${_storeName} (key PRIMARY KEY, value);`;
-          executeSql(sqlCreateTable, [], (createError, createResults) => {
-            if (createError) reject(createError);
-            resolve(true); // The table has been created successfully
-          });
-        }
-      });
-    });
+  if (result !== null) {
+    // 返回查询结果
     return result;
-  };
-
-  // Add the given task to the queue, including the success and error callbacks
-  enqueueDbTask(task, (err, result) => {
-    if (err) {
-      console.error('An error occurred when checking or creating the table:', err);
-    }
-    if (callback) {
-      callback(err, result);
-    }
-  });
+  } else {
+    throw new Error("Failed to execute select operation");
+  }
 }
+
+// 检查数据库中的表是否存在，如果不存在则创建，如果存在则不做任何操作
+// 创建成功或者表已存在返回true，创建失败返回false
+export async function checkStore(_name, _storeName) {
+  // 查询在 sqlite_master 表中是否存在名为 storeName 的表
+  const sql = `SELECT name FROM sqlite_master WHERE type='table' AND name='${_storeName}';`;
+  try {
+    const result = await select(sql, _name);
+    if (result.length > 0) {
+      //console.log(`Table ${_storeName} has created.`)
+      return true; // 表已存在
+    } else {
+      // 表不存在，试图创建它
+      const sql = `CREATE TABLE ${_storeName} (key PRIMARY KEY, value);`;
+      const createAction = await execute(sql, _name);
+      //console.log(`Table ${_storeName} now created.`)
+      return createAction !== undefined && createAction !== false; // 如果 createAction 非 undefined 且非 false，意味着创建成功
+    }
+  } catch (err) {
+    //console.log(_name)
+    //console.log(_storeName)
+    console.error('An error occurred when checking or creating the table:', err);
+    return false; // 发生错误，返回false
+  }
+}
+
 /**
  * @name: 最终封装
  * 
@@ -365,13 +266,32 @@ export async function checkStore(_name, _storeName, callback) {
  * @param options 
  * @returns 
  */
-export function _initStorage(options, callback) {
-  // 创建用给定参数初始化的任务函数
-  const initTaskWithParams = createInitTask(options);
-  // 将初始化任务和回调加入队列
-  enqueueDbTask(initTaskWithParams, callback);
-}
+export async function _initStorage(options) {
+  name = options.name;
+  storeName = options.storeName;
 
+  isInitializing = true; // 设置标志，表示正在初始化数据库
+
+  if (isOpenDatabase(name)) {
+    isInitializing = false; // 初始化完成
+    executeCallback(Promise.resolve(true));
+    runPendingOperations(); // 运行队列中的下一个挂起操作
+    return Promise.resolve(true);
+  } else {
+    try {
+      await openDatabase(name);
+      isInitializing = false; // 初始化完成
+      executeCallback(Promise.resolve(true));
+      runPendingOperations(); // 运行队列中的下一个挂起操作
+      return true;
+    } catch (error) {
+      isInitializing = false; // 初始化失败
+      executeCallback(Promise.reject(error));
+      runPendingOperations(); // 运行队列中的下一个挂起操作
+      return Promise.reject(error);
+    }
+  }
+}
 
 /**
  * @description 删除数据库
@@ -380,380 +300,227 @@ export function _initStorage(options, callback) {
  */
 export function dropInstance(callback, name) {
   const sql = `DROP DATABASE IF EXISTS ${name};`;
-  const promise = new Promise((resolve, reject) => {
-    execute(sql, name, false, (error, result) => {
-      if (error) {
-        reject(error);
-      } else {
-        resolve(result);
-      }
-    });
-  });
+  const promise = execute(sql, name);
 
   executeCallback(promise, callback);
   return promise;
 }
+
 /**
  * @description 设置指定数据
- * @param key
+ * @param key 
  * @param value
- * @param callback
- * @returns
+ * @param callback 
+ * @returns 
  */
-export function setItem(key: any, value: any, callback: (err: any, result?: any) => void) {
-  key = normalizeKey(key);
-  
-  const task = async () => {
-    try {
-      await new Promise<void>((resolve, reject) => {
-        checkStore(name, storeName, (checkErr) => {
-          if (checkErr) {
-            reject(checkErr);
-          } else {
-            resolve();
-          }
-        });
-      });
+export async function setItem(key, value, callback) {
+  const _name = name
+  const _storeName = storeName
+  try {
+    key = normalizeKey(key);
+    await checkStore(_name, _storeName);
 
-      const sql = `INSERT OR REPLACE INTO ${storeName} (key, value) VALUES (?, ?);`;
-
-      await new Promise<void>((resolve, reject) => {
-        executeSql(sql, [key, value], (executeErr, executeResult) => {
-          if (executeErr) {
-            reject(executeErr);
-          } else {
-            resolve();
-          }
-        });
-      });
-
-      return true; 
-    } catch (error) {
-      throw error; 
+    if (value === undefined) {
+      value = null;
     }
-  };
-  enqueueDbTask(task, (err, result) => {
-    if (callback) {
-      callback(err, result);
-    }
-  });
+
+    const sql = `INSERT OR REPLACE INTO ${_storeName} (key, value) VALUES('${key}', '${value}');`;
+    const result = await execute(sql, _name);
+
+    executeCallback(result ? true : Promise.reject('Set item failed'), callback);
+
+    return result ? true : Promise.reject('Set item failed');
+  } catch (error) {
+    console.error("1：An error occurred:", error);
+    executeCallback(null, callback);
+    throw error;
+  }
 }
 
 /**
  * @description 获取指定数据
- * @param key
- * @param callback
- * @returns
+ * @param key 
+ * @param callback 
+ * @returns 
  */
-export async function getItem(key: string, callback: (err: any, result?: any) => void) {
-  key = normalizeKey(key);
+export async function getItem(key, callback) {
+  const _name = name
+  const _storeName = storeName
+  try {
+    key = normalizeKey(key);
+    await checkStore(_name, _storeName);
 
-  const task = async () => {
-      try {
-          await new Promise<void>((resolve, reject) => {
-              checkStore(name, storeName, (checkErr) => {
-                  if (checkErr) {
-                      reject(checkErr);
-                  } else {
-                      resolve();
-                  }
-              });
-          });
+    const sql = `SELECT value FROM ${_storeName} WHERE key='${key}';`;
+    const result = await select(sql, _name);
 
-          const sql = `SELECT value FROM ${storeName} WHERE key=?;`;
+    executeCallback(result.length > 0 ? result[0].value : null, callback);
 
-          const result = await new Promise<any>((resolve, reject) => {
-              selectSql(sql, [key], (selectErr, results) => {
-                  if (selectErr) {
-                      reject(selectErr);
-                  } else {
-                      resolve(results);
-                  }
-              });
-          });
-
-          return result.length > 0 ? result[0].value : null;
-      } catch (error) {
-          throw error;
-      }
-  };
-
-  enqueueDbTask(task, (err, result) => {
-    if (callback) {
-      callback(err, result);
-    }
-  });
+    return result.length > 0 ? result[0].value : null;
+  } catch (error) {
+    console.error("2：An error occurred:", error);
+    executeCallback(null, callback);
+    throw error;
+  }
 }
 
 /**
  * @description 删除指定数据
- * @param key 要删除的数据的键
- * @param callback 结果回调函数
+ * @param key 
+ * @param callback 
  * @returns 
  */
-export async function removeItem(key: string, callback: (err: any, result?: any) => void) {
-  key = normalizeKey(key);
+export async function removeItem(key, callback) {
+  const _name = name
+  const _storeName = storeName
+  try {
+    key = normalizeKey(key);
+    await checkStore(_name, _storeName);
 
-  const task = async () => {
-      try {
-          await new Promise<void>((resolve, reject) => {
-              checkStore(name, storeName, (checkErr) => {
-                  if (checkErr) {
-                      reject(checkErr);
-                  } else {
-                      resolve();
-                  }
-              });
-          });
+    const sql = `DELETE FROM ${_storeName} WHERE key ='${key}';`;
+    const result = await execute(sql, _name);
 
-          const sql = `DELETE FROM ${storeName} WHERE key=?;`;
-
-          await new Promise<void>((resolve, reject) => {
-              executeSql(sql, [key], (executeErr, executeResult) => {
-                  if (executeErr) {
-                      reject(executeErr);
-                  } else {
-                      resolve();
-                  }
-              });
-          });
-
-          return true;
-      } catch (error) {
-          throw error;
-      }
-  };
-
-  enqueueDbTask(task, (err, result) => {
-    if (callback) {
-      callback(err, result);
-    }
-  });
+    executeCallback(result ? true : false, callback);
+    return result ? true : false;
+  } catch (error) {
+    console.error("3：An error occurred:", error);
+    executeCallback(null, callback);
+    throw error;
+  }
 }
 
 
 /**
  * @description 清空某个表的全部数据
- * @param callback 结果回调函数
+
+ * @param callback 
  * @returns 
  */
-export async function clear(callback: (err: any, result?: any) => void) {
-  const task = async () => {
-    try {
-      await new Promise<void>((resolve, reject) => {
-        checkStore(name, storeName, (checkErr) => {
-          if (checkErr) {
-            reject(checkErr);
-          } else {
-            resolve();
-          }
-        });
-      });
+export async function clear(callback) {
+  const _name = name
+  const _storeName = storeName
+  try {
+    await checkStore(_name, _storeName);
 
-      const sql = `DELETE FROM ${storeName};`;
+    const sql = `DELETE FROM ${_storeName};`;
+    const result = await execute(sql, _name);
 
-      await new Promise<void>((resolve, reject) => {
-        executeSql(sql, [], (executeErr, executeResult) => {
-          if (executeErr) {
-            reject(executeErr);
-          } else {
-            resolve();
-          }
-        });
-      });
-
-      return true;
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  enqueueDbTask(task, (err, result) => {
-    if (callback) {
-      callback(err, result);
-    }
-  });
+    executeCallback(result ? true : false, callback);
+    return result ? true : false;
+  } catch (error) {
+    console.error("4：An error occurred:", error);
+    executeCallback(null, callback);
+    throw error;
+  }
 }
 
 /**
- * @description 获取指定库的指定键
- * @param index 键的索引位置
- * @param callback 结果回调函数
+ * @description 获取指定库的指定key
+ * @param index
+ * @param callback 
  * @returns 
  */
-export async function key(index: number, name: string, storeName: string, callback: (err: any, result?: any) => void) {
-  const task = async () => {
-    try {
-      await new Promise<void>((resolve, reject) => {
-        checkStore(name, storeName, (checkErr) => {
-          if (checkErr) {
-            reject(checkErr);
-          } else {
-            resolve();
-          }
-        });
-      });
+export async function key(index, callback) {
+  const _name = name
+  const _storeName = storeName
+  try {
+    await checkStore(_name, _storeName);
 
-      const sql = `SELECT key FROM ${storeName} ORDER BY ROWID ASC LIMIT 1 OFFSET ?;`;
+    const sql = `SELECT key FROM ${_storeName} LIMIT ${index}, 1;`;
+    const result = await select(sql, _name);
 
-      const result = await new Promise<any>((resolve, reject) => {
-        selectSql(sql, [index], (selectErr, results) => {
-          if (selectErr) {
-            reject(selectErr);
-          } else {
-            resolve(results);
-          }
-        });
-      });
+    const key = result.length > 0 ? result.map(item => item.key) : [];
+    executeCallback(key, callback);
 
-      return result.length > 0 ? result[0].key : null;
-    } catch (error) {
-      throw error;
-    }
-  };
-
-  enqueueDbTask(task, (err, result) => {
-    if (callback) {
-      callback(err, result);
-    }
-  });
+    return key;
+  } catch (error) {
+    console.error("An error occurred:", error);
+    executeCallback(null, callback);
+    throw error;
+  }
 }
 
 /**
- * @description 获取指定库的全部键
- * @param callback 结果回调函数
+ * @description 获取指定库的全部keys
+ * @param callback 
  * @returns 
  */
-export async function keys(name: string, storeName: string, callback: (err: any, result?: any) => void) {
-  const task = async () => {
+export async function keys(callback) {
+  enqueueOperation(async () => {
+    const _name = name;
+    const _storeName = storeName;
     try {
-      await new Promise<void>((resolve, reject) => {
-        checkStore(name, storeName, (checkErr) => {
-          if (checkErr) {
-            reject(checkErr);
-          } else {
-            resolve();
-          }
-        });
-      });
+      await checkStore(_name, _storeName);
+      const sql = `SELECT key FROM ${_storeName};`;
+      const result = await select(sql, _name);
 
-      const sql = `SELECT key FROM ${storeName};`;
+      const keys = result.length > 0 ? result.map(item => item.key) : [];
+      executeCallback(keys, callback);
 
-      const result = await new Promise<any[]>((resolve, reject) => {
-        selectSql(sql, [], (selectErr, results) => {
-          if (selectErr) {
-            reject(selectErr);
-          } else {
-            resolve(results);
-          }
-        });
-      });
-
-      return result.map(row => row.key);
+      return keys; // Return the keys array outside the callback
     } catch (error) {
+      console.error("An error occurred:", error);
+      executeCallback(null, callback);
       throw error;
-    }
-  };
-
-  enqueueDbTask(task, (err, result) => {
-    if (callback) {
-      callback(err, result);
     }
   });
 }
 
 /**
  * @description 获取当前库的所有key的数量
- * @param name 数据库名称
- * @param storeName 表名称
- * @param callback 结果回调函数
+ * @param callback
  * @returns
  */
-export async function length(name: string, storeName: string, callback: (err: any, result?: any) => void) {
-  const task = async () => {
-    try {
-      await new Promise<void>((resolve, reject) => {
-        checkStore(name, storeName, (checkErr) => {
-          if (checkErr) {
-            reject(checkErr);
-          } else {
-            resolve();
-          }
-        });
-      });
+export async function length(callback) {
+  const _name = name
+  const _storeName = storeName
+  try {
+    await checkStore(_name, _storeName);
 
-      const sql = `SELECT COUNT(key) as count FROM ${storeName};`;
+    const sql = `SELECT COUNT(key) AS count FROM ${_storeName};`;
+    const result = await select(sql, _name);
 
-      const result = await new Promise<number>((resolve, reject) => {
-        selectSql(sql, [], (selectErr, results) => {
-          if (selectErr) {
-            reject(selectErr);
-          } else {
-            resolve(results.length > 0 && results[0].count ? results[0].count : 0);
-          }
-        });
-      });
-
-      return result;
-    } catch (error) {
-      throw error; 
-    }
-  };
-
-  enqueueDbTask(task, (err, result) => {
-    if (callback) {
-      callback(err, result);
-    }
-  });
+    executeCallback(result.length > 0 ? result[0].count : 0, callback);
+    return result.length > 0 ? result[0].count : 0;
+  } catch (error) {
+    console.error("7：An error occurred:", error);
+    executeCallback(null, callback);
+    throw error;
+  }
 }
 
 /**
  * @description 迭代指定库的所有数据
- * @param name 数据库的名称
- * @param storeName 存储名称
- * @param callback 进行迭代时的回调函数
+ * @param name 
+ * @param storeName
+ * @param callback 
  * @returns 
  */
-export async function iterate(name: string, storeName: string, callback: (err: any, key: any, value: any, index: number) => void) {
-  const task = async () => {
-    try {
-      await new Promise<void>((resolve, reject) => {
-        checkStore(name, storeName, (checkErr) => {
-          if (checkErr) {
-            reject(checkErr);
-          } else {
-            resolve();
-          }
-        });
-      });
+export async function iterate(callback) {
+  const _name = name
+  const _storeName = storeName
+  try {
+    await checkStore(_name, _storeName);
+    const sql = `SELECT key, value FROM ${_storeName};`;
+    const result = await select(sql, _name);
 
-      const sql = `SELECT key, value FROM ${storeName};`;
+    let iterationNumber = 1;
+    let returnValue;
 
-      const results = await new Promise<any[]>((resolve, reject) => {
-        selectSql(sql, [], (selectErr, rows) => {
-          if (selectErr) {
-            reject(selectErr);
-          } else {
-            resolve(rows);
-          }
-        });
-      });
-
-      let index = 0;
-      for (const row of results) {
-        callback(null, row.key, row.value, index++);
+    for (let item of result) {
+      returnValue = callback(item.key, item.value, iterationNumber++);
+      if (returnValue !== undefined) {
+        executeCallback(returnValue, callback);
+        return returnValue;
       }
-    } catch (error) {
-      callback(error, null, null, 0);
-      throw error; 
     }
-  };
 
-  enqueueDbTask(task, (err) => {
-    if (err && callback) {
-      callback(err, null, null, 0);
-    }
-  });
+    executeCallback(result.length > 0 ? result : [], callback);
+    return result.length > 0 ? result : [];
+  } catch (error) {
+    console.error("Error during iteration:", error);
+    executeCallback(null, callback);
+    throw error;
+  }
 }
 
 /**
