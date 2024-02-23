@@ -250,7 +250,7 @@ export async function checkStore(_name, _storeName) {
  * @param options 
  * @returns 
  */
-export function _initStorage(options) {
+export async function _initStorage(options) {
   name = options.name;
   storeName = options.storeName;
   //console.log(options)
