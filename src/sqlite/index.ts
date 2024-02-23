@@ -3,6 +3,8 @@ import normalizeKey from 'localforage/src/utils/normalizeKey';
 
 declare const plus: any;
 let name, storeName;
+// 定义一个用于跟踪数据库操作状态的标志
+let oping = false;
 //使用plus的sqlite重新实现一遍localForage
 
 /**
@@ -250,9 +252,14 @@ export async function checkStore(_name, _storeName) {
  * @param options 
  * @returns 
  */
-export async function _initStorage(options) {
+export function _initStorage(options) {
   name = options.name;
   storeName = options.storeName;
+  // 如果初始化正在进行中，返回初始化Promise，保持其他调用等待直到初始化完成
+  if (oping) {
+    return null;
+  }
+  oping = true;
   //console.log(options)
   //console.log(name)
   //console.log(storeName)
@@ -311,7 +318,7 @@ export async function setItem(key, value, callback) {
     const result = await execute(sql, _name);
 
     executeCallback(result ? true : Promise.reject('Set item failed'), callback);
-
+    oping = false;
     return result ? true : Promise.reject('Set item failed');
   } catch (error) {
     console.error("1：An error occurred:", error);
@@ -337,7 +344,7 @@ export async function getItem(key, callback) {
     const result = await select(sql, _name);
 
     executeCallback(result.length > 0 ? result[0].value : null, callback);
-
+    oping = false;
     return result.length > 0 ? result[0].value : null;
   } catch (error) {
     console.error("2：An error occurred:", error);
@@ -363,6 +370,7 @@ export async function removeItem(key, callback) {
     const result = await execute(sql, _name);
 
     executeCallback(result ? true : false, callback);
+    oping = false;
     return result ? true : false;
   } catch (error) {
     console.error("3：An error occurred:", error);
@@ -388,6 +396,7 @@ export async function clear(callback) {
     const result = await execute(sql, _name);
 
     executeCallback(result ? true : false, callback);
+    oping = false;
     return result ? true : false;
   } catch (error) {
     console.error("4：An error occurred:", error);
@@ -413,7 +422,7 @@ export async function key(index, callback) {
 
     const key = result.length > 0 ? result.map(item => item.key) : [];
     executeCallback(key, callback);
-
+    oping = false;
     return key;
   } catch (error) {
     console.error("An error occurred:", error);
@@ -437,7 +446,7 @@ export async function keys(callback) {
 
     const keys = result.length > 0 ? result.map(item => item.key) : [];
     executeCallback(keys, callback);
-
+    oping = false;
     return keys; // Return the keys array outside the callback
   } catch (error) {
     console.error("An error occurred:", error);
@@ -461,6 +470,7 @@ export async function length(callback) {
     const result = await select(sql, _name);
 
     executeCallback(result.length > 0 ? result[0].count : 0, callback);
+    oping = false;
     return result.length > 0 ? result[0].count : 0;
   } catch (error) {
     console.error("7：An error occurred:", error);
@@ -496,6 +506,7 @@ export async function iterate(callback) {
     }
 
     executeCallback(result.length > 0 ? result : [], callback);
+    oping = false;
     return result.length > 0 ? result : [];
   } catch (error) {
     console.error("Error during iteration:", error);
@@ -508,7 +519,6 @@ export async function iterate(callback) {
  * @description 最终的驱动器成品
  */
 export const sqliteDriver = {
-  //我们的名字
   _driver: 'sqliteDriver',
   // 是否支持
   // _support: support,
