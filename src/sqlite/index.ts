@@ -255,7 +255,7 @@ export async function checkStore(_name, _storeName) {
 export function _initStorage(options) {
   name = options.name;
   storeName = options.storeName;
-  // 如果初始化正在进行中，返回初始化Promise，保持其他调用等待直到初始化完成
+  // 如果任务正在进行中，返回null
   if (oping) {
     return null;
   }
