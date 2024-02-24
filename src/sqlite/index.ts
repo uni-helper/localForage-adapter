@@ -2,8 +2,6 @@ import executeCallback from "localforage/src/utils/executeCallback";
 import normalizeKey from 'localforage/src/utils/normalizeKey';
 
 declare const plus: any;
-let dbQueue: (() => void)[] = []; // 创建队列，用于存储还未执行的数据库操作
-let isInitializing = false; // 是否正在初始化数据库
 let name, storeName;
 // 定义一个用于跟踪数据库操作状态的标志
 let oping = false;
@@ -11,7 +9,7 @@ let oping = false;
 
 /**
  * @name: 一层封装
- *
+ * 
  **/
 
 // #ifdef APP-PLUS
@@ -118,7 +116,7 @@ function selectSql(sql: string, _name: any): Promise<boolean> {
 
 /**
  * @name: 二层封装
- *
+ * 
  **/
 
 //往某数据库中执行sql语句的综合方法，包括打开数据库、执行sql语句、关闭数据库（其中关闭数据库要判断是否还有其他操作在执行）
@@ -221,7 +219,7 @@ export async function checkStore(_name, _storeName) {
       const sql = `CREATE TABLE ${_storeName} (key PRIMARY KEY, value);`;
       const createAction = await execute(sql, _name);
       //console.log(`Table ${_storeName} now created.`)
-      return createAction !== undefined && createAction !== false; // 如果 createAction 非 undefined 且非 false，意味着 创建成功
+      return createAction !== undefined && createAction !== false; // 如果 createAction 非 undefined 且非 false，意味着创建成功
     }
   } catch (err) {
     //console.log(_name)
@@ -233,7 +231,7 @@ export async function checkStore(_name, _storeName) {
 
 /**
  * @name: 最终封装
- *
+ * 
  **/
 
 /**
@@ -251,10 +249,10 @@ export async function checkStore(_name, _storeName) {
 
 /**
  * @description 初始化数据库
- * @param options
- * @returns
+ * @param options 
+ * @returns 
  */
-export async function _initStorage(options) {
+export function _initStorage(options) {
   name = options.name;
   storeName = options.storeName;
   // 如果任务正在进行中，返回null
@@ -266,31 +264,29 @@ export async function _initStorage(options) {
   //console.log(name)
   //console.log(storeName)
 
-  if (isOpenDatabase(name)) {
-    isInitializing = false;
+  const isDatabaseOpen = isOpenDatabase(name);
+  if (isDatabaseOpen) {
     executeCallback(Promise.resolve(true));
-    runPendingOperations();
     return Promise.resolve(true);
   } else {
-    try {
-      await openDatabase(name);
-      isInitializing = false; // 初始化完成
-      executeCallback(Promise.resolve(true));
-      runPendingOperations();
-      return true;
-    } catch (error) {
-      isInitializing = false; // 初始化失败
-      executeCallback(Promise.reject(error));
-      runPendingOperations();
-      return Promise.reject(error);
-    }
+    const promise = openDatabase(name)
+      .then(() => {
+        executeCallback(Promise.resolve(true));
+        return true;
+      })
+      .catch(error => {
+        executeCallback(Promise.reject(error));
+        return Promise.reject(error);
+      });
+
+    return promise;
   }
 }
 
 /**
  * @description 删除数据库
- * @param {Function} callback
- * @returns {Promise}
+ * @param {Function} callback 
+ * @returns {Promise} 
  */
 export function dropInstance(callback, name) {
   const sql = `DROP DATABASE IF EXISTS ${name};`;
@@ -302,25 +298,24 @@ export function dropInstance(callback, name) {
 
 /**
  * @description 设置指定数据
- * @param key
+ * @param key 
  * @param value
- * @param callback
- * @returns
+ * @param callback 
+ * @returns 
  */
 export async function setItem(key, value, callback) {
-  enqueueOperation(async () => {
-    const _name = name;
-    const _storeName = storeName;
-    try {
-      key = normalizeKey(key);
-      await checkStore(_name, _storeName);
+  const _name = name
+  const _storeName = storeName
+  try {
+    key = normalizeKey(key);
+    await checkStore(_name, _storeName);
 
-      if (value === undefined) {
-        value = null;
-      }
+    if (value === undefined) {
+      value = null;
+    }
 
-      const sql = `INSERT OR REPLACE INTO ${_storeName} (key, value) VALUES('${key}', '${value}');`;
-      const result = await execute(sql, _name);
+    const sql = `INSERT OR REPLACE INTO ${_storeName} (key, value) VALUES('${key}', '${value}');`;
+    const result = await execute(sql, _name);
 
     executeCallback(result ? true : Promise.reject('Set item failed'), callback);
     oping = false;
@@ -334,20 +329,19 @@ export async function setItem(key, value, callback) {
 
 /**
  * @description 获取指定数据
- * @param key
- * @param callback
- * @returns
+ * @param key 
+ * @param callback 
+ * @returns 
  */
 export async function getItem(key, callback) {
-  enqueueOperation(async () => {
-    const _name = name;
-    const _storeName = storeName;
-    try {
-      key = normalizeKey(key);
-      await checkStore(_name, _storeName);
+  const _name = name
+  const _storeName = storeName
+  try {
+    key = normalizeKey(key);
+    await checkStore(_name, _storeName);
 
-      const sql = `SELECT value FROM ${_storeName} WHERE key='${key}';`;
-      const result = await select(sql, _name);
+    const sql = `SELECT value FROM ${_storeName} WHERE key='${key}';`;
+    const result = await select(sql, _name);
 
     executeCallback(result.length > 0 ? result[0].value : null, callback);
     oping = false;
@@ -361,20 +355,19 @@ export async function getItem(key, callback) {
 
 /**
  * @description 删除指定数据
- * @param key
- * @param callback
- * @returns
+ * @param key 
+ * @param callback 
+ * @returns 
  */
 export async function removeItem(key, callback) {
-  enqueueOperation(async () => {
-    const _name = name
-    const _storeName = storeName
-    try {
-      key = normalizeKey(key);
-      await checkStore(_name, _storeName);
+  const _name = name
+  const _storeName = storeName
+  try {
+    key = normalizeKey(key);
+    await checkStore(_name, _storeName);
 
-      const sql = `DELETE FROM ${_storeName} WHERE key ='${key}';`;
-      const result = await execute(sql, _name);
+    const sql = `DELETE FROM ${_storeName} WHERE key ='${key}';`;
+    const result = await execute(sql, _name);
 
     executeCallback(result ? true : false, callback);
     oping = false;
@@ -386,20 +379,21 @@ export async function removeItem(key, callback) {
   }
 }
 
+
 /**
  * @description 清空某个表的全部数据
- * @param callback
- * @returns
+
+ * @param callback 
+ * @returns 
  */
 export async function clear(callback) {
-  enqueueOperation(async () => {
-    const _name = name
-    const _storeName = storeName
-    try {
-      await checkStore(_name, _storeName);
+  const _name = name
+  const _storeName = storeName
+  try {
+    await checkStore(_name, _storeName);
 
-      const sql = `DELETE FROM ${_storeName};`;
-      const result = await execute(sql, _name);
+    const sql = `DELETE FROM ${_storeName};`;
+    const result = await execute(sql, _name);
 
     executeCallback(result ? true : false, callback);
     oping = false;
@@ -414,18 +408,17 @@ export async function clear(callback) {
 /**
  * @description 获取指定库的指定key
  * @param index
- * @param callback
- * @returns
+ * @param callback 
+ * @returns 
  */
 export async function key(index, callback) {
-  enqueueOperation(async () => {
-    const _name = name;
-    const _storeName = storeName;
-    try {
-      await checkStore(_name, _storeName);
+  const _name = name
+  const _storeName = storeName
+  try {
+    await checkStore(_name, _storeName);
 
-      const sql = `SELECT key FROM ${_storeName} LIMIT ${index}, 1;`;
-      const result = await select(sql, _name);
+    const sql = `SELECT key FROM ${_storeName} LIMIT ${index}, 1;`;
+    const result = await select(sql, _name);
 
     const key = result.length > 0 ? result.map(item => item.key) : [];
     executeCallback(key, callback);
@@ -440,17 +433,16 @@ export async function key(index, callback) {
 
 /**
  * @description 获取指定库的全部keys
- * @param callback
- * @returns
+ * @param callback 
+ * @returns 
  */
 export async function keys(callback) {
-  enqueueOperation(async () => {
-    const _name = name;
-    const _storeName = storeName;
-    try {
-      await checkStore(_name, _storeName);
-      const sql = `SELECT key FROM ${_storeName};`;
-      const result = await select(sql, _name);
+  const _name = name
+  const _storeName = storeName
+  try {
+    await checkStore(_name, _storeName);
+    const sql = `SELECT key FROM ${_storeName};`;
+    const result = await select(sql, _name);
 
     const keys = result.length > 0 ? result.map(item => item.key) : [];
     executeCallback(keys, callback);
@@ -469,14 +461,13 @@ export async function keys(callback) {
  * @returns
  */
 export async function length(callback) {
-  enqueueOperation(async () => {
-    const _name = name
-    const _storeName = storeName
-    try {
-      await checkStore(_name, _storeName);
+  const _name = name
+  const _storeName = storeName
+  try {
+    await checkStore(_name, _storeName);
 
-      const sql = `SELECT COUNT(key) AS count FROM ${_storeName};`;
-      const result = await select(sql, _name);
+    const sql = `SELECT COUNT(key) AS count FROM ${_storeName};`;
+    const result = await select(sql, _name);
 
     executeCallback(result.length > 0 ? result[0].count : 0, callback);
     oping = false;
@@ -490,27 +481,29 @@ export async function length(callback) {
 
 /**
  * @description 迭代指定库的所有数据
- * @param callback
- * @returns
+ * @param name 
+ * @param storeName
+ * @param callback 
+ * @returns 
  */
 export async function iterate(callback) {
-  enqueueOperation(async () => {
-    const _name = name
-    const _storeName = storeName
-    try {
-      await checkStore(_name, _storeName);
-      const sql = `SELECT key, value FROM ${_storeName};`;
-      const result = await select(sql, _name);
+  const _name = name
+  const _storeName = storeName
+  try {
+    await checkStore(_name, _storeName);
+    const sql = `SELECT key, value FROM ${_storeName};`;
+    const result = await select(sql, _name);
 
-      let iterationNumber = 1;
-      let returnValue;
+    let iterationNumber = 1;
+    let returnValue;
 
-      for (let item of result) {
-        returnValue = callback(item.key, item.value, iterationNumber++);
-        if (returnValue !== undefined) {
-          break;
-        }
+    for (let item of result) {
+      returnValue = callback(item.key, item.value, iterationNumber++);
+      if (returnValue !== undefined) {
+        executeCallback(returnValue, callback);
+        return returnValue;
       }
+    }
 
     executeCallback(result.length > 0 ? result : [], callback);
     oping = false;
