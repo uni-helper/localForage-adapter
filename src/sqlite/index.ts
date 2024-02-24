@@ -164,9 +164,9 @@ async function execute(sql: string, _name: any, returnResults = false) {
 
   counter[_name]--;
 
-  if (counter[_name] === 0) {
-    await closeDatabase(_name);
-  }
+  // if (counter[_name] === 0) {
+  //   await closeDatabase(_name);
+  // }
 
   return returnResults ? queryResults : result; // 根据参数返回相应的值
 }
@@ -191,10 +191,10 @@ async function select(sql: string, _name: any) {
   result = await selectSql(sql, _name);
 
   counter[_name]--;
-  if (counter[_name] === 0) {
-    // 如果没有其它正在执行的操作，关闭数据库
-    await closeDatabase(_name);
-  }
+  // if (counter[_name] === 0) {
+  //   // 如果没有其它正在执行的操作，关闭数据库
+  //   await closeDatabase(_name);
+  // }
 
   if (result !== null) {
     // 返回查询结果
