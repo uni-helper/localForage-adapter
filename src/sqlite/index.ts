@@ -48,19 +48,19 @@ const isOpenDatabase = (_name) => {
 }
 
 //关闭数据库
-function closeDatabase(_name) {
-  return new Promise((resolve, reject) => {
-    plus.sqlite.closeDatabase({
-      name: _name,
-      success(e) {
-        resolve(true);
-      },
-      fail(e) {
-        reject(new Error('2：Failed to close database: ' + JSON.stringify(e)));
-      }
-    });
-  });
-}
+// function closeDatabase(_name) {
+//   return new Promise((resolve, reject) => {
+//     plus.sqlite.closeDatabase({
+//       name: _name,
+//       success(e) {
+//         resolve(true);
+//       },
+//       fail(e) {
+//         reject(new Error('2：Failed to close database: ' + JSON.stringify(e)));
+//       }
+//     });
+//   });
+// }
 
 //执行事务
 //operation ，类型为string，并且只有三个可选值：begin、commit、rollback
