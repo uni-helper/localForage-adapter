@@ -2,9 +2,8 @@ import executeCallback from "localforage/src/utils/executeCallback";
 import normalizeKey from 'localforage/src/utils/normalizeKey';
 
 declare const plus: any;
-let name, storeName;
-// 定义一个用于跟踪数据库操作状态的标志
-let oping = false;
+const taskQueue: Array<{ name: string; storeName: string }> = [];  // 存储待处理任务的队列
+let isProcessing = false; // 是否有任务正在处理中
 //使用plus的sqlite重新实现一遍localForage
 
 /**
@@ -253,35 +252,46 @@ export async function checkStore(_name, _storeName) {
  * @returns 
  */
 export function _initStorage(options) {
-  // 如果任务正在进行中，不操作并返回null
-  if (oping) {
-    return null;
+  taskQueue.push({ name: options.name, storeName: options.storeName }); // 将初始化任务的配置添加到队列中
+  processQueue(); // 处理队列中的任务
+}
+
+async function processQueue() {
+  if (isProcessing || taskQueue.length === 0) {
+    return; // 如果已经有任务在处理中或队列为空，则不做任何事
   }
-  oping = true;
+  isProcessing = true; // 开始处理
+  const task = taskQueue.shift(); // 获取队列中的首个任务配置
+  
+  // 初始化存储
+  try {
+    await initializeStorage(task);
+  } catch (error) {
+    console.error('An error occurred while processing the task:', error);
+  }
+  isProcessing = false; // 当前任务处理完毕
+  processQueue(); // 递归处理队列中的下一个任务
+}
 
-  name = options.name;
-  storeName = options.storeName;
-
-  console.log(options)
-  console.log(name)
-  console.log(storeName)
-
+async function initializeStorage(task?: { name: string; storeName: string }) {
+  if (!task) {
+    throw new Error('Task is undefined');
+  }
+  const { name, storeName } = task;
+  console.log({ name, storeName });
   const isDatabaseOpen = isOpenDatabase(name);
   if (isDatabaseOpen) {
     executeCallback(Promise.resolve(true));
-    return Promise.resolve(true);
+    return true;
   } else {
-    const promise = openDatabase(name)
-      .then(() => {
-        executeCallback(Promise.resolve(true));
-        return true;
-      })
-      .catch(error => {
-        executeCallback(Promise.reject(error));
-        return Promise.reject(error);
-      });
-
-    return promise;
+    try {
+      await openDatabase(name);
+      executeCallback(Promise.resolve(true));
+      return true;
+    } catch (error) {
+      executeCallback(Promise.reject(error));
+      throw error;
+    }
   }
 }
 
@@ -306,6 +316,18 @@ export function dropInstance(callback, name) {
  * @returns 
  */
 export async function setItem(key, value, callback) {
+  if (taskQueue.length === 0) {
+    console.error('No initialization tasks in queue.');
+    return;
+  }
+  
+  const task = taskQueue.shift(); // 获取并检查任务
+  if (!task) {
+    console.error('No task available to process.');
+    return;
+  }
+  
+  const { name, storeName } = task; // 取出任务
   const _name = name
   const _storeName = storeName
   try {
@@ -320,7 +342,6 @@ export async function setItem(key, value, callback) {
     const result = await execute(sql, _name);
 
     executeCallback(result ? true : Promise.reject('Set item failed'), callback);
-    oping = false;
     return result ? true : Promise.reject('Set item failed');
   } catch (error) {
     console.error("1：An error occurred:", error);
@@ -336,6 +357,18 @@ export async function setItem(key, value, callback) {
  * @returns 
  */
 export async function getItem(key, callback) {
+  if (taskQueue.length === 0) {
+    console.error('No initialization tasks in queue.');
+    return;
+  }
+  
+  const task = taskQueue.shift(); // 获取并检查任务
+  if (!task) {
+    console.error('No task available to process.');
+    return;
+  }
+  
+  const { name, storeName } = task; // 取出任务
   const _name = name
   const _storeName = storeName
   try {
@@ -346,7 +379,6 @@ export async function getItem(key, callback) {
     const result = await select(sql, _name);
 
     executeCallback(result.length > 0 ? result[0].value : null, callback);
-    oping = false;
     return result.length > 0 ? result[0].value : null;
   } catch (error) {
     console.error("2：An error occurred:", error);
@@ -362,6 +394,18 @@ export async function getItem(key, callback) {
  * @returns 
  */
 export async function removeItem(key, callback) {
+  if (taskQueue.length === 0) {
+    console.error('No initialization tasks in queue.');
+    return;
+  }
+  
+  const task = taskQueue.shift(); // 获取并检查任务
+  if (!task) {
+    console.error('No task available to process.');
+    return;
+  }
+  
+  const { name, storeName } = task; // 取出任务
   const _name = name
   const _storeName = storeName
   try {
@@ -372,7 +416,6 @@ export async function removeItem(key, callback) {
     const result = await execute(sql, _name);
 
     executeCallback(result ? true : false, callback);
-    oping = false;
     return result ? true : false;
   } catch (error) {
     console.error("3：An error occurred:", error);
@@ -389,6 +432,18 @@ export async function removeItem(key, callback) {
  * @returns 
  */
 export async function clear(callback) {
+  if (taskQueue.length === 0) {
+    console.error('No initialization tasks in queue.');
+    return;
+  }
+  
+  const task = taskQueue.shift(); // 获取并检查任务
+  if (!task) {
+    console.error('No task available to process.');
+    return;
+  }
+  
+  const { name, storeName } = task; // 取出任务
   const _name = name
   const _storeName = storeName
   try {
@@ -398,7 +453,6 @@ export async function clear(callback) {
     const result = await execute(sql, _name);
 
     executeCallback(result ? true : false, callback);
-    oping = false;
     return result ? true : false;
   } catch (error) {
     console.error("4：An error occurred:", error);
@@ -414,6 +468,18 @@ export async function clear(callback) {
  * @returns 
  */
 export async function key(index, callback) {
+  if (taskQueue.length === 0) {
+    console.error('No initialization tasks in queue.');
+    return;
+  }
+  
+  const task = taskQueue.shift(); // 获取并检查任务
+  if (!task) {
+    console.error('No task available to process.');
+    return;
+  }
+  
+  const { name, storeName } = task; // 取出任务
   const _name = name
   const _storeName = storeName
   try {
@@ -424,7 +490,6 @@ export async function key(index, callback) {
 
     const key = result.length > 0 ? result.map(item => item.key) : [];
     executeCallback(key, callback);
-    oping = false;
     return key;
   } catch (error) {
     console.error("An error occurred:", error);
@@ -439,6 +504,18 @@ export async function key(index, callback) {
  * @returns 
  */
 export async function keys(callback) {
+  if (taskQueue.length === 0) {
+    console.error('No initialization tasks in queue.');
+    return;
+  }
+  
+  const task = taskQueue.shift(); // 获取并检查任务
+  if (!task) {
+    console.error('No task available to process.');
+    return;
+  }
+  
+  const { name, storeName } = task; // 取出任务
   const _name = name
   const _storeName = storeName
   try {
@@ -448,7 +525,6 @@ export async function keys(callback) {
 
     const keys = result.length > 0 ? result.map(item => item.key) : [];
     executeCallback(keys, callback);
-    oping = false;
     return keys; // Return the keys array outside the callback
   } catch (error) {
     console.error("An error occurred:", error);
@@ -463,6 +539,18 @@ export async function keys(callback) {
  * @returns
  */
 export async function length(callback) {
+  if (taskQueue.length === 0) {
+    console.error('No initialization tasks in queue.');
+    return;
+  }
+  
+  const task = taskQueue.shift(); // 获取并检查任务
+  if (!task) {
+    console.error('No task available to process.');
+    return;
+  }
+  
+  const { name, storeName } = task; // 取出任务
   const _name = name
   const _storeName = storeName
   try {
@@ -472,7 +560,6 @@ export async function length(callback) {
     const result = await select(sql, _name);
 
     executeCallback(result.length > 0 ? result[0].count : 0, callback);
-    oping = false;
     return result.length > 0 ? result[0].count : 0;
   } catch (error) {
     console.error("7：An error occurred:", error);
@@ -489,6 +576,18 @@ export async function length(callback) {
  * @returns 
  */
 export async function iterate(callback) {
+  if (taskQueue.length === 0) {
+    console.error('No initialization tasks in queue.');
+    return;
+  }
+  
+  const task = taskQueue.shift(); // 获取并检查任务
+  if (!task) {
+    console.error('No task available to process.');
+    return;
+  }
+  
+  const { name, storeName } = task; // 取出任务
   const _name = name
   const _storeName = storeName
   try {
@@ -508,7 +607,6 @@ export async function iterate(callback) {
     }
 
     executeCallback(result.length > 0 ? result : [], callback);
-    oping = false;
     return result.length > 0 ? result : [];
   } catch (error) {
     console.error("Error during iteration:", error);
