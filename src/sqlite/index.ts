@@ -259,7 +259,7 @@ async function processQueue() {
   if (taskQueue.length === 0) {
     return; // 如果队列为空，则不做任何事
   }
-  const task = taskQueue.shift(); // 获取队列中的首个任务配置
+  const task = taskQueue[0]; // 获取队列中的首个任务配置
   
   // 初始化存储
   try {
