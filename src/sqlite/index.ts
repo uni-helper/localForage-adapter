@@ -3,7 +3,6 @@ import normalizeKey from 'localforage/src/utils/normalizeKey';
 
 declare const plus: any;
 const taskQueue: Array<{ name: string; storeName: string }> = [];  // 存储待处理任务的队列
-let isProcessing = false; // 是否有任务正在处理中
 //使用plus的sqlite重新实现一遍localForage
 
 /**
@@ -257,10 +256,9 @@ export function _initStorage(options) {
 }
 
 async function processQueue() {
-  if (isProcessing || taskQueue.length === 0) {
-    return; // 如果已经有任务在处理中或队列为空，则不做任何事
+  if (taskQueue.length === 0) {
+    return; // 如果队列为空，则不做任何事
   }
-  isProcessing = true; // 开始处理
   const task = taskQueue.shift(); // 获取队列中的首个任务配置
   
   // 初始化存储
@@ -269,7 +267,6 @@ async function processQueue() {
   } catch (error) {
     console.error('An error occurred while processing the task:', error);
   }
-  isProcessing = false; // 当前任务处理完毕
   processQueue(); // 递归处理队列中的下一个任务
 }
 
@@ -317,7 +314,7 @@ export function dropInstance(callback, name) {
  */
 export async function setItem(key, value, callback) {
   if (taskQueue.length === 0) {
-    console.error('No initialization tasks in queue.');
+    console.error('No tasks in queue.');
     return;
   }
   
@@ -358,7 +355,7 @@ export async function setItem(key, value, callback) {
  */
 export async function getItem(key, callback) {
   if (taskQueue.length === 0) {
-    console.error('No initialization tasks in queue.');
+    console.error('No tasks in queue.');
     return;
   }
   
@@ -395,7 +392,7 @@ export async function getItem(key, callback) {
  */
 export async function removeItem(key, callback) {
   if (taskQueue.length === 0) {
-    console.error('No initialization tasks in queue.');
+    console.error('No tasks in queue.');
     return;
   }
   
@@ -433,7 +430,7 @@ export async function removeItem(key, callback) {
  */
 export async function clear(callback) {
   if (taskQueue.length === 0) {
-    console.error('No initialization tasks in queue.');
+    console.error('No tasks in queue.');
     return;
   }
   
@@ -469,7 +466,7 @@ export async function clear(callback) {
  */
 export async function key(index, callback) {
   if (taskQueue.length === 0) {
-    console.error('No initialization tasks in queue.');
+    console.error('No tasks in queue.');
     return;
   }
   
@@ -505,7 +502,7 @@ export async function key(index, callback) {
  */
 export async function keys(callback) {
   if (taskQueue.length === 0) {
-    console.error('No initialization tasks in queue.');
+    console.error('No tasks in queue.');
     return;
   }
   
@@ -540,7 +537,7 @@ export async function keys(callback) {
  */
 export async function length(callback) {
   if (taskQueue.length === 0) {
-    console.error('No initialization tasks in queue.');
+    console.error('No tasks in queue.');
     return;
   }
   
@@ -577,7 +574,7 @@ export async function length(callback) {
  */
 export async function iterate(callback) {
   if (taskQueue.length === 0) {
-    console.error('No initialization tasks in queue.');
+    console.error('No tasks in queue.');
     return;
   }
   
