@@ -269,7 +269,6 @@ async function processQueue() {
   } catch (error) {
     console.error('An error occurred while processing the task:', error);
   }
-  processQueue(); // 递归处理队列中的下一个任务
 }
 
 async function initializeStorage(task?: { name: string; storeName: string }) {
