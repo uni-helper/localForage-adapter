@@ -253,16 +253,18 @@ export async function checkStore(_name, _storeName) {
  * @returns 
  */
 export function _initStorage(options) {
-  name = options.name;
-  storeName = options.storeName;
-  // 如果任务正在进行中，返回null
+  // 如果任务正在进行中，不操作并返回null
   if (oping) {
     return null;
   }
   oping = true;
-  //console.log(options)
-  //console.log(name)
-  //console.log(storeName)
+
+  name = options.name;
+  storeName = options.storeName;
+
+  console.log(options)
+  console.log(name)
+  console.log(storeName)
 
   const isDatabaseOpen = isOpenDatabase(name);
   if (isDatabaseOpen) {
