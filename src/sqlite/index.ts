@@ -251,8 +251,8 @@ export async function checkStore(_name, _storeName) {
  * @returns 
  */
 export function _initStorage(options) {
-  console.log('initStorage');
-  console.log(options);
+  // console.log('initStorage');
+  // console.log(options);
   taskQueue.push({ name: options.name, storeName: options.storeName }); // 将初始化任务的配置添加到队列中
   processQueue(); // 处理队列中的任务
 }
@@ -276,9 +276,9 @@ async function initializeStorage(task?: { name: string; storeName: string }) {
     throw new Error('Task is undefined');
   }
   const { name, storeName } = task;
-  console.log('initializeStorage');
-  console.log(name);
-  console.log(storeName);
+  // console.log('initializeStorage');
+  // console.log(name);
+  // console.log(storeName);
   const isDatabaseOpen = isOpenDatabase(name);
   if (isDatabaseOpen) {
     executeCallback(Promise.resolve(true));
@@ -328,9 +328,9 @@ export async function setItem(key, value, callback) {
   }
   
   const { name, storeName } = task; // 取出任务
-  console.log('setItem');
-  console.log(name);
-  console.log(storeName);
+  // console.log('setItem');
+  // console.log(name);
+  // console.log(storeName);
   const _name = name
   const _storeName = storeName
   try {
@@ -372,9 +372,9 @@ export async function getItem(key, callback) {
   }
   
   const { name, storeName } = task; // 取出任务
-  console.log('getItem');
-  console.log(name);
-  console.log(storeName);
+  // console.log('getItem');
+  // console.log(name);
+  // console.log(storeName);
   const _name = name
   const _storeName = storeName
   try {
@@ -412,9 +412,9 @@ export async function removeItem(key, callback) {
   }
   
   const { name, storeName } = task; // 取出任务
-  console.log('removeItem');
-  console.log(name);
-  console.log(storeName);
+  // console.log('removeItem');
+  // console.log(name);
+  // console.log(storeName);
   const _name = name
   const _storeName = storeName
   try {
@@ -453,9 +453,9 @@ export async function clear(callback) {
   }
   
   const { name, storeName } = task; // 取出任务
-  console.log('clear');
-  console.log(name);
-  console.log(storeName);
+  // console.log('clear');
+  // console.log(name);
+  // console.log(storeName);
   const _name = name
   const _storeName = storeName
   try {
@@ -492,9 +492,9 @@ export async function key(index, callback) {
   }
   
   const { name, storeName } = task; // 取出任务
-  console.log('key');
-  console.log(name);
-  console.log(storeName);
+  // console.log('key');
+  // console.log(name);
+  // console.log(storeName);
   const _name = name
   const _storeName = storeName
   try {
@@ -531,9 +531,9 @@ export async function keys(callback) {
   }
   
   const { name, storeName } = task; // 取出任务
-  console.log('keys');
-  console.log(name);
-  console.log(storeName);
+  // console.log('keys');
+  // console.log(name);
+  // console.log(storeName);
   const _name = name
   const _storeName = storeName
   try {
@@ -569,9 +569,9 @@ export async function length(callback) {
   }
   
   const { name, storeName } = task; // 取出任务
-  console.log('length');
-  console.log(name);
-  console.log(storeName);
+  // console.log('length');
+  // console.log(name);
+  // console.log(storeName);
   const _name = name
   const _storeName = storeName
   try {
@@ -609,9 +609,9 @@ export async function iterate(callback) {
   }
   
   const { name, storeName } = task; // 取出任务
-  console.log('iterate');
-  console.log(name);
-  console.log(storeName);
+  // console.log('iterate');
+  // console.log(name);
+  // console.log(storeName);
   const _name = name
   const _storeName = storeName
   try {
