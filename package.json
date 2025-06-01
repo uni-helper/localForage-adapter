@@ -2,7 +2,7 @@
   "name": "@uni-helper/localforage-adapter",
   "type": "module",
   "version": "1.0.2",
-  "packageManager": "pnpm@8.9.0",
+  "packageManager": "pnpm@8.15.9",
   "description": "",
   "author": "Uni-Helper,censujiang",
   "license": "MIT",
@@ -40,7 +40,7 @@
     "lint:fix": "eslint . --fix"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "1.0.0-beta.27",
+    "@antfu/eslint-config": "1.2.1",
     "@types/node": "^20.8.6",
     "bumpp": "^9.2.0",
     "eslint": "^8.51.0",
