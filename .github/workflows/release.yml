@@ -19,7 +19,7 @@ jobs:
           version: 8.15.9
 
       - name: Set node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 16.x
           cache: pnpm
