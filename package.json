@@ -2,7 +2,7 @@
   "name": "@uni-helper/localforage-adapter",
   "type": "module",
   "version": "1.0.2",
-  "packageManager": "pnpm@8.15.9",
+  "packageManager": "pnpm@10.22.0",
   "description": "",
   "author": "Uni-Helper,censujiang",
   "license": "MIT",
